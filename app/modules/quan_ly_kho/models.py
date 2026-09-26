@@ -19,6 +19,7 @@ class Product(SQLModel, table=True):
     name: str = Field(max_length=200)
     unit: str = Field(default="Cái", max_length=20) # Đơn vị tính
     price: float = Field(default=0.0) # Giá bán
+    cost_price: float = Field(default=0.0) # Giá nhập gần nhất
     stock_quantity: int = Field(default=0) # Tồn kho hiện tại
     
     # Khóa ngoại liên kết tới Category

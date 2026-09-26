@@ -15,3 +15,11 @@ class StockMoveCreate(BaseModel):
     quantity: int
     move_type: str  # "IN" hoặc "OUT"
     note: str = ""
+
+class ProductUpdate(BaseModel):
+    sku: str
+    name: str
+    unit: str = "Cái"
+    price: float = 0.0
+    cost_price: float = 0.0
+    category_id: int | None = None

@@ -62,3 +62,43 @@ def get_stock_moves(session: Session) -> List[StockMove]:
     """Lấy toàn bộ lịch sử nhập/xuất, mới nhất lên đầu."""
     statement = select(StockMove).order_by(StockMove.created_at.desc())
     return list(session.exec(statement).all())
+
+from app.modules.quan_ly_kho.schemas import ProductUpdate
+from sqlmodel import or_
+
+def get_product(session: Session, product_id: int) -> Product | None:
+    return session.get(Product, product_id)
+
+def update_product(session: Session, product_id: int, data: ProductUpdate) -> Product | None:
+    product = session.get(Product, product_id)
+    if not product:
+        return None
+    for key, value in data.model_dump().items():
+        setattr(product, key, value)
+    session.add(product)
+    session.commit()
+    session.refresh(product)
+    return product
+
+def delete_product(session: Session, product_id: int) -> tuple[bool, str]:
+    """Trả về (thành công, thông báo)."""
+    from app.modules.quan_ly_kho.models import StockMove
+    product = session.get(Product, product_id)
+    if not product:
+        return False, "Sản phẩm không tồn tại"
+    # Kiểm tra có giao dịch kho không
+    has_moves = session.exec(select(StockMove).where(StockMove.product_id == product_id)).first()
+    if has_moves:
+        return False, "Không thể xóa: Sản phẩm đã có giao dịch nhập/xuất"
+    session.delete(product)
+    session.commit()
+    return True, "Đã xóa sản phẩm"
+
+def search_products(session: Session, keyword: str = "") -> List:
+    """Tìm kiếm theo SKU hoặc tên."""
+    statement = select(Product, Category).join(Category, isouter=True)
+    if keyword:
+        pattern = f"%{keyword}%"
+        statement = statement.where(or_(Product.sku.like(pattern), Product.name.like(pattern)))
+    statement = statement.order_by(Product.sku)
+    return session.exec(statement).all()
