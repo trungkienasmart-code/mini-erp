@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Lịch sử Nhập/Xuất Kho{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-arrow-left-right"></i> Lịch sử Nhập/Xuất Kho</h2>
+    <a href="/inventory/products" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại Sản phẩm
+    </a>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle"></i> {{ request.query_params.get('error') }}
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- Form tạo phiếu -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">Tạo phiếu Nhập/Xuất</div>
+            <div class="card-body">
+                <form method="post" action="/inventory/stock-moves/create">
+                    <div class="mb-2">
+                        <label class="form-label">Sản phẩm</label>
+                        <select name="product_id" class="form-select" required>
+                            <option value="">-- Chọn sản phẩm --</option>
+                            {% for prod, cat in products %}
+                            <option value="{{ prod.id }}">
+                                {{ prod.sku }} - {{ prod.name }} (Tồn: {{ prod.stock_quantity }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Loại giao dịch</label>
+                        <select name="move_type" class="form-select" required>
+                            <option value="IN">Nhập kho (+)</option>
+                            <option value="OUT">Xuất kho (-)</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Số lượng</label>
+                        <input type="number" name="quantity" class="form-control" min="1" value="1" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Ghi chú</label>
+                        <input type="text" name="note" class="form-control" placeholder="Lý do nhập/xuất">
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-save"></i> Lưu phiếu
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bảng lịch sử -->
+    <div class="col-md-8">
+        <table class="table table-hover bg-white">
+            <thead class="table-light">
+                <tr>
+                    <th>Ngày</th>
+                    <th>Sản phẩm</th>
+                    <th>Loại</th>
+                    <th class="text-end">Số lượng</th>
+                    <th>Ghi chú</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for move in moves %}
+                <tr>
+                    <td>{{ move.created_at.strftime("%d/%m/%Y %H:%M") }}</td>
+                    <td>{{ product_dict.get(move.product_id, "N/A") }}</td>
+                    <td>
+                        {% if move.move_type == "IN" %}
+                        <span class="badge bg-success">Nhập</span>
+                        {% else %}
+                        <span class="badge bg-danger">Xuất</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">{{ move.quantity }}</td>
+                    <td>{{ move.note }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center text-muted">Chưa có giao dịch nào.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

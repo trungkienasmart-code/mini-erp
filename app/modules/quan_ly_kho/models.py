@@ -26,3 +26,16 @@ class Product(SQLModel, table=True):
     category: Optional[Category] = Relationship(back_populates="products")
     
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class StockMove(SQLModel, table=True):
+    __tablename__ = "inv_stock_move"
+    
+    id: Optional[int] = Field(default=None, primary_key=True)
+    product_id: int = Field(foreign_key="inv_product.id")
+    quantity: int = Field(default=0)  # Số lượng (luôn dương)
+    move_type: str = Field(max_length=20)  # "IN" hoặc "OUT"
+    note: str = Field(default="", max_length=255)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    # Quan hệ với Product
+    product: Optional[Product] = Relationship()

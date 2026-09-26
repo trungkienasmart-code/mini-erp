@@ -54,3 +54,35 @@ def category_create(
 ):
     services.create_category(session, CategoryCreate(name=name))
     return RedirectResponse(url="/inventory/products", status_code=303)
+
+from app.modules.quan_ly_kho.schemas import StockMoveCreate
+
+@router.get("/stock-moves")
+def stock_move_list(request: Request, session: Session = Depends(get_session)):
+    moves = services.get_stock_moves(session)
+    products_data = services.get_all_products(session)
+    # Tạo dict tra cứu tên sản phẩm nhanh
+    product_dict = {p.id: f"{p.sku} - {p.name}" for p, _ in products_data}
+    return templates.TemplateResponse(
+        request=request,
+        name="quan_ly_kho/stock_move_list.html",
+        context={"moves": moves, "products": products_data, "product_dict": product_dict},
+    )
+
+@router.post("/stock-moves/create")
+def stock_move_create(
+    product_id: int = Form(...),
+    quantity: int = Form(...),
+    move_type: str = Form(...),
+    note: str = Form(""),
+    session: Session = Depends(get_session),
+):
+    try:
+        services.create_stock_move(
+            session,
+            StockMoveCreate(product_id=product_id, quantity=quantity, move_type=move_type, note=note)
+        )
+    except ValueError as e:
+        # Nếu lỗi (ví dụ: không đủ tồn kho), chuyển hướng về trang với thông báo
+        return RedirectResponse(url=f"/inventory/stock-moves?error={str(e)}", status_code=303)
+    return RedirectResponse(url="/inventory/stock-moves", status_code=303)
