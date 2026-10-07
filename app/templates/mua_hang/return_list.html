@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Trả hàng NCC{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-arrow-return-right"></i> Phiếu trả hàng NCC</h2>
+    <div>
+        <a href="/purchase/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Dashboard
+        </a>
+        <a href="/purchase/returns/new" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Tạo phiếu trả
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-5">
+        <input type="text" name="q" class="form-control"
+               placeholder="Tìm theo mã phiếu..." value="{{ keyword }}">
+    </div>
+    <div class="col-md-3">
+        <select name="status" class="form-select" onchange="this.form.submit()">
+            <option value="">-- Tất cả trạng thái --</option>
+            <option value="DRAFT" {% if status == "DRAFT" %}selected{% endif %}>Nháp</option>
+            <option value="APPROVED" {% if status == "APPROVED" %}selected{% endif %}>Đã duyệt</option>
+            <option value="CONFIRMED" {% if status == "CONFIRMED" %}selected{% endif %}>Đã xác nhận</option>
+            <option value="CANCELLED" {% if status == "CANCELLED" %}selected{% endif %}>Đã hủy</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-secondary"><i class="bi bi-search"></i> Lọc</button>
+    </div>
+</form>
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Mã phiếu</th>
+            <th>Ngày</th>
+            <th>NCC</th>
+            <th>Lý do</th>
+            <th class="text-end">Số tiền trả</th>
+            <th>Hình thức</th>
+            <th class="text-center">Trạng thái</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in returns %}
+        <tr>
+            <td>
+                <a href="/purchase/returns/{{ r.id }}" class="text-decoration-none">
+                    <strong>{{ r.code }}</strong>
+                </a>
+            </td>
+            <td><small>{{ r.created_at.strftime("%d/%m/%y %H:%M") }}</small></td>
+            <td>{{ supplier_dict.get(r.supplier_id, "N/A") }}</td>
+            <td><small>{{ r.reason or "—" }}</small></td>
+            <td class="text-end fw-bold text-danger">
+                -{{ "{:,.0f}".format(r.total_amount) }} đ
+            </td>
+            <td>
+                {% if r.refund_method == "CREDIT" %}
+                <span class="badge bg-info">Ghi giảm nợ</span>
+                {% elif r.refund_method == "CASH" %}
+                <span class="badge bg-success">Tiền mặt</span>
+                {% elif r.refund_method == "BANK" %}
+                <span class="badge bg-primary">CK</span>
+                {% endif %}
+            </td>
+            <td class="text-center">
+                {% if r.status == "DRAFT" %}
+                <span class="badge bg-secondary">Nháp</span>
+                {% elif r.status == "APPROVED" %}
+                <span class="badge bg-info">Đã duyệt</span>
+                {% elif r.status == "CONFIRMED" %}
+                <span class="badge bg-success">Đã xác nhận</span>
+                {% elif r.status == "CANCELLED" %}
+                <span class="badge bg-dark">Đã hủy</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="/purchase/returns/{{ r.id }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye"></i>
+                </a>
+                {% if r.status == "CONFIRMED" %}
+                <a href="/purchase/returns/{{ r.id }}/print" target="_blank"
+                   class="btn btn-sm btn-outline-dark">
+                    <i class="bi bi-printer"></i>
+                </a>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">Chưa có phiếu trả nào</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

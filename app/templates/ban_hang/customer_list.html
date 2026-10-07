@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Khách hàng{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-people"></i> Khách hàng</h2>
+    <div>
+        <a href="/sales/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Bán hàng
+        </a>
+        <a href="/sales/customers/new" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Thêm KH
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    <i class="bi bi-exclamation-triangle"></i> {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    <i class="bi bi-check-circle"></i> {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-6">
+        <input type="text" name="q" class="form-control"
+               placeholder="Tìm theo mã, tên hoặc SĐT..."
+               value="{{ keyword }}">
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-secondary"><i class="bi bi-search"></i> Tìm</button>
+        {% if keyword %}
+        <a href="/sales/customers" class="btn btn-outline-danger">
+            <i class="bi bi-x-circle"></i> Xóa lọc
+        </a>
+        {% endif %}
+    </div>
+</form>
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Mã</th>
+            <th>Tên</th>
+            <th>SĐT</th>
+            <th>Loại</th>
+            <th class="text-end">Công nợ</th>
+            <th class="text-center">Điểm</th>
+            <th class="text-center" style="width: 140px;">Thao tác</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in customers %}
+        <tr {% if c.code == 'KHL' %}class="table-secondary"{% endif %}>
+            <td><strong>{{ c.code }}</strong></td>
+            <td>{{ c.name }}</td>
+            <td>{{ c.phone or "—" }}</td>
+            <td>
+                {% if c.customer_type == "RETAIL" %}
+                <span class="badge bg-info">Lẻ</span>
+                {% else %}
+                <span class="badge bg-primary">Buôn</span>
+                {% endif %}
+            </td>
+            <td class="text-end">
+                {% if c.current_debt > 0 %}
+                <span class="text-danger fw-bold">{{ "{:,.0f}".format(c.current_debt) }} đ</span>
+                {% else %}
+                <span class="text-muted">0 đ</span>
+                {% endif %}
+            </td>
+            <td class="text-center">
+                <span class="badge bg-warning text-dark">{{ c.loyalty_points }}</span>
+            </td>
+            <td class="text-center">
+                <a href="/sales/customers/{{ c.id }}/edit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                {% if c.code != "KHL" %}
+                <form method="post" action="/sales/customers/{{ c.id }}/delete"
+                      class="d-inline" onsubmit="return confirm('Xóa KH này?')">
+                    <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">Chưa có khách hàng nào</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

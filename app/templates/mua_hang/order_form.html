@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+{% block title %}Tạo đơn mua hàng{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-file-text"></i> Tạo đơn mua hàng</h2>
+    <a href="/purchase/orders" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Thông tin NCC -->
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">Thông tin nhà cung cấp</div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Nhà cung cấp <span class="text-danger">*</span></label>
+                        <select id="supplierSelect" class="form-select" required>
+                            <option value="">-- Chọn NCC --</option>
+                            {% for s in suppliers %}
+                            <option value="{{ s.id }}" data-term="{{ s.payment_term_days }}">
+                                {{ s.code }} - {{ s.name }}
+                                {% if s.payment_term_days %} (nợ {{ s.payment_term_days }} ngày){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted" id="supplierInfo"></small>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Số HĐ NCC</label>
+                        <input type="text" id="supplierInvNo" class="form-control"
+                               placeholder="VD: 0012345">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Ngày HĐ NCC</label>
+                        <input type="date" id="supplierInvDate" class="form-control">
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">Ghi chú</label>
+                        <input type="text" id="orderNote" class="form-control"
+                               placeholder="Ghi chú đơn mua">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chi tiết đơn -->
+        <div class="card mb-3">
+            <div class="card-header bg-secondary text-white">
+                <i class="bi bi-list-ul"></i> Chi tiết đơn hàng
+            </div>
+            <div class="card-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-12 position-relative">
+                        <input type="text" id="productSearch" class="form-control"
+                               placeholder="🔍 Gõ tên, mã SKU hoặc quét mã vạch...">
+                        <div id="searchResults" class="search-results"></div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                       <thead class="table-light">
+                        <tr>
+                            <th style="width: 90px;">Mã hàng</th>
+                            <th>Sản phẩm</th>
+                            <th class="text-center" style="width: 90px;">Tồn</th>
+                            <th class="text-center" style="width: 100px;">Bán 30d</th>
+                            <th style="width: 90px;">SL</th>
+                            <th style="width: 110px;">Đơn giá</th>
+                            <th style="width: 70px;">VAT %</th>
+                            <th class="text-end" style="width: 110px;">Thành tiền</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="orderLines">
+                        <tr><td colspan="9" class="text-center text-muted py-3">
+                            Chưa có sản phẩm. Gõ ô trên để tìm hoặc chọn NCC để tải danh sách hàng.
+                        </td></tr>
+                    </tbody>
+                </table>
+                </div>
+
+                <!-- Nút tải danh sách SP của NCC -->
+                <div id="supplierProductsDiv" style="display:none;" class="mt-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="showSupplierProducts()">
+                        <i class="bi bi-list-check"></i> Xem danh sách hàng của NCC
+                    </button>
+                </div>
+
+                <!-- Bảng sản phẩm NCC -->
+                <div id="supplierProductsPanel" style="display:none;" class="mt-2">
+                    <div class="card border-primary">
+                        <div class="card-header bg-primary text-white py-2">
+                            <strong>Danh sách hàng của NCC</strong>
+                            <button class="btn-close btn-close-white float-end" onclick="hideSupplierProducts()"></button>
+                        </div>
+                        <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table table-sm table-hover mb-0" id="supplierProductsTable">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Mã</th>
+                                        <th>Tên</th>
+                                        <th>Mã vạch</th>
+                                        <th class="text-center">Tồn</th>
+                                        <th class="text-center">Bán 30d</th>
+                                        <th class="text-end">Giá nhập</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tổng kết -->
+    <div class="col-md-4">
+        <div class="card sticky-top" style="top: 70px;">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-calculator"></i> Tổng kết
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Tạm tính:</span>
+                    <strong id="sumSubtotal">0 đ</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>VAT:</span>
+                    <strong id="sumTax">0 đ</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Chiết khấu NCC:</span>
+                    <input type="number" id="orderDiscount" class="form-control form-control-sm"
+                           style="width: 120px; text-align: right;"
+                           value="0" step="1000" oninput="recalc()">
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="fs-5">TỔNG:</span>
+                    <strong id="sumTotal" class="fs-4 text-danger">0 đ</strong>
+                </div>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success" onclick="submitOrder()">
+                        <i class="bi bi-save"></i> Lưu đơn (Nháp)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.search-results { position: absolute; top: 100%; left: 0; right: 0; background: white;
+                  border: 1px solid #ddd; border-radius: 4px; max-height: 300px;
+                  overflow-y: auto; z-index: 100; display: none;
+                  box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+.search-results.show { display: block; }
+.search-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; }
+.search-item:hover { background: #e9ecef; }
+</style>
+
+<script>
+let allProducts = {{ products | tojson }};
+let lines = [];
+
+function formatMoney(n) {
+    return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' đ';
+}
+
+const productSearch = document.getElementById('productSearch');
+const searchResults = document.getElementById('searchResults');
+const supplierSelect = document.getElementById('supplierSelect');
+
+// Khi chọn NCC → tải danh sách SP của NCC
+supplierSelect.addEventListener('change', async () => {
+    const sid = supplierSelect.value;
+    const info = document.getElementById('supplierInfo');
+    const div = document.getElementById('supplierProductsDiv');
+    const panel = document.getElementById('supplierProductsPanel');
+
+    // Ẩn panel cũ
+    panel.style.display = 'none';
+
+    if (!sid) {
+        info.textContent = '';
+        div.style.display = 'none';
+        return;
+    }
+
+    const opt = supplierSelect.options[supplierSelect.selectedIndex];
+    const term = opt.dataset.term || 0;
+    info.textContent = term > 0 ? `Điều khoản: nợ ${term} ngày` : '';
+    div.style.display = 'block';
+
+    // Tự động load danh sách SP
+    await loadSupplierProducts(sid);
+});
+
+async function loadSupplierProducts(sid) {
+    const tbody = document.querySelector('#supplierProductsTable tbody');
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Đang tải...</td></tr>';
+    try {
+        const res = await fetch('/purchase/api/supplier/' + sid + '/products');
+        const data = await res.json();
+        if (data.products.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">NCC này chưa có sản phẩm nào</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.products.map(p => `
+            <tr>
+                <td><strong>${p.sku}</strong></td>
+                <td>${p.name}<br><small class="text-muted">${p.unit}</small></td>
+                <td><small>${p.barcode || '—'}</small></td>
+                <td class="text-center">
+                    <span class="badge ${p.stock > 0 ? 'bg-primary' : 'bg-secondary'}">${p.stock}</span>
+                </td>
+                <td class="text-center">—</td>
+                <td class="text-end">${formatMoney(p.cost_price)}</td>
+                <td><button class="btn btn-sm btn-success" onclick="addLineFromSupplier(${p.id})">
+                    <i class="bi bi-plus"></i></button></td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-danger">Lỗi tải dữ liệu</td></tr>';
+    }
+}
+
+function showSupplierProducts() {
+    document.getElementById('supplierProductsPanel').style.display = 'block';
+}
+function hideSupplierProducts() {
+    document.getElementById('supplierProductsPanel').style.display = 'none';
+}
+
+async function addLineFromSupplier(pid) {
+    try {
+        const res = await fetch('/purchase/api/search-product?q='); // fallback
+        // Hoặc tải thông tin SP từ danh sách hiện có
+        const sid = supplierSelect.value;
+        const res2 = await fetch('/purchase/api/supplier/' + sid + '/products');
+        const data = await res2.json();
+        const p = data.products.find(x => x.id === pid);
+        if (p) addProductToLine(p);
+    } catch(e) { console.error(e); }
+}
+
+function addProductToLine(p) {
+    const existing = lines.find(l => l.product_id === p.id);
+    if (existing) {
+        existing.quantity += 1;
+    } else {
+        lines.push({
+            product_id: p.id, sku: p.sku, name: p.name,
+            unit: p.unit, quantity: 1,
+            unit_price: p.cost_price, tax_rate: p.tax_rate || 0,
+            stock: p.stock, sales_30d: p.sales_30d || 0,
+            barcode: p.barcode || '',
+        });
+    }
+    renderLines();
+    hideSupplierProducts();
+}
+
+// Search box
+productSearch.addEventListener('input', async () => {
+    const q = productSearch.value.trim();
+    if (q.length < 2) { searchResults.classList.remove('show'); return; }
+    try {
+        const supId = supplierSelect.value || '';
+        const url = '/purchase/api/search-product?q=' + encodeURIComponent(q)
+                  + (supId ? '&supplier_id=' + supId : '');
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.products.length === 0) {
+            searchResults.classList.remove('show');
+            return;
+        }
+        searchResults.innerHTML = data.products.map(p => `
+            <div class="search-item" onclick='addProductFromSearch(${JSON.stringify(p).replace(/'/g, "&#39;")})'>
+                <strong>${p.sku}</strong> - ${p.name}
+                <span class="text-primary ms-2">Nhập: ${formatMoney(p.cost_price)}</span>
+                <span class="text-muted small ms-2">Tồn: ${p.stock} ${p.unit}</span>
+                ${p.barcode ? `<span class="text-muted small ms-2">📷 ${p.barcode}</span>` : ''}
+            </div>
+        `).join('');
+        searchResults.classList.add('show');
+    } catch(e) { console.error(e); }
+});
+
+function addProductFromSearch(p) {
+    addProductToLine(p);
+    productSearch.value = '';
+    searchResults.classList.remove('show');
+    productSearch.focus();
+}
+
+// Enter = quét mã vạch
+productSearch.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const code = productSearch.value.trim();
+        if (!code) return;
+        try {
+            const res = await fetch('/purchase/api/lookup-barcode?code=' + encodeURIComponent(code));
+            const data = await res.json();
+            if (data.found) {
+                addProductToLine({
+                    id: data.product_id, sku: data.sku, name: data.name,
+                    unit: data.unit, cost_price: data.cost_price,
+                    tax_rate: data.tax_rate, stock: 0, sales_30d: 0,
+                    barcode: code,
+                });
+                productSearch.value = '';
+                searchResults.classList.remove('show');
+            }
+        } catch(e) { console.error(e); }
+    }
+});
+
+function renderLines() {
+    const tbody = document.getElementById('orderLines');
+    if (lines.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-3">Chưa có sản phẩm. Gõ ô trên để tìm hoặc chọn NCC để tải danh sách hàng.</td></tr>';
+        recalc();
+        return;
+    }
+    tbody.innerHTML = lines.map((l, idx) => {
+        const subtotal = l.quantity * l.unit_price;
+        const tax = subtotal * l.tax_rate / 100;
+                return `<tr>
+            <td><strong>${l.sku}</strong></td>
+            <td>
+                ${l.name} (${l.unit})
+                ${l.barcode ? `<br><small class="text-muted">📷 ${l.barcode}</small>` : ''}
+            </td>
+            <td class="text-center">
+                <span class="badge ${l.stock > 0 ? 'bg-primary' : 'bg-secondary'}">${l.stock || 0}</span>
+            </td>
+            <td class="text-center">
+                <small class="text-info">${l.sales_30d || 0}</small>
+            </td>
+            <td><input type="number" min="1" value="${l.quantity}"
+                       class="form-control form-control-sm"
+                       onchange="updateLine(${idx}, 'quantity', this.value)"></td>
+            <td><input type="number" step="100" value="${l.unit_price}"
+                       class="form-control form-control-sm"
+                       onchange="updateLine(${idx}, 'unit_price', this.value)"></td>
+            <td><input type="number" step="0.1" value="${l.tax_rate}"
+                       class="form-control form-control-sm"
+                       onchange="updateLine(${idx}, 'tax_rate', this.value)"></td>
+            <td class="text-end fw-bold">${formatMoney(subtotal + tax)}</td>
+            <td><button class="btn btn-sm btn-outline-danger" onclick="removeLine(${idx})">
+                <i class="bi bi-x"></i></button></td>
+        </tr>`;
+    }).join('');
+    recalc();
+}
+
+function updateLine(idx, field, val) {
+    lines[idx][field] = parseFloat(val) || 0;
+    renderLines();
+}
+
+function removeLine(idx) {
+    lines.splice(idx, 1);
+    renderLines();
+}
+
+function recalc() {
+    let subtotal = 0, tax = 0;
+    lines.forEach(l => {
+        const s = l.quantity * l.unit_price;
+        subtotal += s;
+        tax += s * l.tax_rate / 100;
+    });
+    const discount = parseFloat(document.getElementById('orderDiscount').value) || 0;
+    const total = Math.max(0, subtotal + tax - discount);
+    document.getElementById('sumSubtotal').textContent = formatMoney(subtotal);
+    document.getElementById('sumTax').textContent = formatMoney(tax);
+    document.getElementById('sumTotal').textContent = formatMoney(total);
+}
+
+async function submitOrder() {
+    if (lines.length === 0) { alert('Chưa có sản phẩm nào!'); return; }
+    const supId = document.getElementById('supplierSelect').value;
+    if (!supId) { alert('Vui lòng chọn nhà cung cấp!'); return; }
+
+    const payload = {
+        supplier_id: parseInt(supId),
+        payment_method: "DEBT",
+        discount_amount: parseFloat(document.getElementById('orderDiscount').value) || 0,
+        note: document.getElementById('orderNote').value,
+        supplier_invoice_no: document.getElementById('supplierInvNo').value,
+        supplier_invoice_date: document.getElementById('supplierInvDate').value,
+        lines: lines.map(l => ({
+            product_id: l.product_id,
+            quantity: l.quantity,
+            unit_price: l.unit_price,
+            tax_rate: l.tax_rate,
+        })),
+    };
+
+    try {
+        const res = await fetch('/purchase/orders/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (data.success) {
+            window.location.href = data.redirect_url;
+        } else {
+            alert('Lỗi: ' + data.message);
+        }
+    } catch(e) {
+        alert('Lỗi kết nối: ' + e);
+    }
+}
+
+productSearch.focus();
+</script>
+{% endblock %}

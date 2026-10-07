@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>In tem - {{ product.name }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 10px; }
+        .toolbar { margin-bottom: 15px; padding: 10px; background: #f0f0f0; border-radius: 5px; }
+        .toolbar button, .toolbar a {
+            padding: 8px 15px; margin-right: 8px; border: 1px solid #ccc;
+            background: #fff; cursor: pointer; text-decoration: none; color: #333;
+            border-radius: 4px;
+        }
+        .toolbar button:hover { background: #e0e0e0; }
+
+        .label-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            max-width: 800px;
+        }
+        .label {
+            border: 1px dashed #ccc;
+            padding: 8px;
+            text-align: center;
+            page-break-inside: avoid;
+            background: #fff;
+        }
+        .label .product-name {
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 4px;
+            height: 28px;
+            overflow: hidden;
+        }
+        .label .price {
+            font-size: 13px;
+            font-weight: bold;
+            color: #d00;
+            margin-top: 4px;
+        }
+        .label .uom-name {
+            font-size: 10px;
+            color: #666;
+        }
+
+        @media print {
+            .toolbar { display: none; }
+            body { padding: 0; }
+            .label { border: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="toolbar">
+    <strong>🖨️ In tem mã vạch - {{ product.name }}</strong>
+    <button onclick="window.print()">🖨️ In (Ctrl+P)</button>
+    <a href="/inventory/products/{{ product.id }}">← Quay lại</a>
+    <label style="margin-left: 15px;">
+        Số bản in mỗi tem:
+        <input type="number" id="copies" value="6" min="1" max="100"
+               style="width: 60px;" onchange="render()">
+    </label>
+</div>
+
+<div class="label-grid" id="labelGrid"></div>
+
+<script>
+const PRODUCT = {
+    name: "{{ product.name|replace('"', '\\"') }}",
+    sku: "{{ product.sku }}",
+    price: {{ product.price }},
+    unit: "{{ product.unit }}"
+};
+
+const BARCODES = [
+    {% for b in barcodes %}
+    {
+        code: "{{ b.code }}",
+        uom_id: {{ b.uom_id if b.uom_id else 'null' }},
+        uom_name: "{% for u in [] %}{% endfor %}{% for u in [] %}{% endfor %}",
+        price: {{ product.price }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+function formatPrice(n) {
+    return new Intl.NumberFormat('vi-VN').format(n) + ' đ';
+}
+
+function render() {
+    const copies = parseInt(document.getElementById('copies').value) || 1;
+    const grid = document.getElementById('labelGrid');
+    grid.innerHTML = '';
+
+    if (BARCODES.length === 0) {
+        grid.innerHTML = '<p style="grid-column: 1/-1; color: #999;">Sản phẩm này chưa có mã vạch. Vào trang chi tiết sản phẩm để thêm.</p>';
+        return;
+    }
+
+    let idx = 0;
+    BARCODES.forEach(bc => {
+        for (let i = 0; i < copies; i++) {
+            const div = document.createElement('div');
+            div.className = 'label';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'product-name';
+            nameDiv.textContent = PRODUCT.name;
+            div.appendChild(nameDiv);
+
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('class', 'barcode-svg');
+            div.appendChild(svg);
+
+            const priceDiv = document.createElement('div');
+            priceDiv.className = 'price';
+            priceDiv.textContent = formatPrice(bc.price);
+            div.appendChild(priceDiv);
+
+            if (bc.uom_name) {
+                const uomDiv = document.createElement('div');
+                uomDiv.className = 'uom-name';
+                uomDiv.textContent = bc.uom_name;
+                div.appendChild(uomDiv);
+            }
+
+            grid.appendChild(div);
+
+            try {
+                JsBarcode(svg, bc.code, {
+                    format: 'CODE128',
+                    width: 1.5,
+                    height: 45,
+                    displayValue: true,
+                    fontSize: 11,
+                    margin: 3,
+                });
+            } catch(e) {
+                console.error('Barcode error for', bc.code, e);
+            }
+            idx++;
+        }
+    });
+}
+
+render();
+</script>
+</body>
+</html>

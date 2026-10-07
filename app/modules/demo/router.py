@@ -7,9 +7,9 @@ from app.core.config import TEMPLATES_DIR
 from app.core.database import get_session
 from app.modules.demo import services
 from app.modules.demo.schemas import NoteCreate
-
+from app.core.templates import templates
 router = APIRouter(prefix="/demo", tags=["Demo"])
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
 
 @router.get("/notes")
 def note_list(request: Request, session: Session = Depends(get_session)):

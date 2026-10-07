@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Phiếu thu/chi{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-receipt-cutoff"></i> Phiếu thu/chi</h2>
+    <div>
+        <a href="/accounting/vouchers/export?voucher_type={{ voucher_type }}&cash_account_id={{ filter_cash_id or '' }}&date_from={{ date_from }}&date_to={{ date_to }}"
+           class="btn btn-outline-success">
+            <i class="bi bi-file-earmark-excel"></i> Xuất CSV
+        </a>
+        <a href="/accounting/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Dashboard
+        </a>
+        <a href="/accounting/vouchers/new?voucher_type=RECEIPT" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Phiếu thu
+        </a>
+        <a href="/accounting/vouchers/new?voucher_type=PAYMENT" class="btn btn-danger">
+            <i class="bi bi-dash-circle"></i> Phiếu chi
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- Filter -->
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-2">
+        <label class="form-label small">Từ ngày</label>
+        <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+    </div>
+    <div class="col-md-2">
+        <label class="form-label small">Đến ngày</label>
+        <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+    </div>
+    <div class="col-md-2">
+        <label class="form-label small">Loại phiếu</label>
+        <select name="voucher_type" class="form-select">
+            <option value="">-- Tất cả --</option>
+            <option value="RECEIPT" {% if voucher_type == "RECEIPT" %}selected{% endif %}>Phiếu thu</option>
+            <option value="PAYMENT" {% if voucher_type == "PAYMENT" %}selected{% endif %}>Phiếu chi</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small">Tài khoản quỹ</label>
+        <select name="cash_account_id" class="form-select">
+            <option value="">-- Tất cả --</option>
+            {% for a in accounts %}
+            <option value="{{ a.id }}" {% if filter_cash_id == a.id %}selected{% endif %}>
+                {{ a.code }} - {{ a.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary me-2">
+            <i class="bi bi-search"></i> Lọc
+        </button>
+        <a href="/accounting/vouchers" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle"></i> Xóa lọc
+        </a>
+    </div>
+</form>
+
+<!-- Tổng kết -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body">
+                <small class="text-muted">Tổng thu trong kỳ</small>
+                <h3 class="text-success">+{{ "{:,.0f}".format(total_receipt) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-danger">
+            <div class="card-body">
+                <small class="text-muted">Tổng chi trong kỳ</small>
+                <h3 class="text-danger">-{{ "{:,.0f}".format(total_payment) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-info">
+            <div class="card-body">
+                <small class="text-muted">Chênh lệch thu - chi</small>
+                <h3 class="text-info">{{ "{:,.0f}".format(total_receipt - total_payment) }} đ</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Mã phiếu</th>
+            <th>Ngày</th>
+            <th>Loại</th>
+            <th>Tài khoản quỹ</th>
+            <th>Đối tượng</th>
+            <th>Lý do</th>
+            <th class="text-end">Số tiền</th>
+            <th class="text-center" style="width: 100px;">Thao tác</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for v in vouchers %}
+        <tr>
+            <td>
+                <a href="/accounting/vouchers/{{ v.id }}" class="text-decoration-none">
+                    <strong>{{ v.code }}</strong>
+                </a>
+            </td>
+            <td><small>{{ v.voucher_date.strftime("%d/%m/%Y") }}</small></td>
+            <td>
+                {% if v.voucher_type == "RECEIPT" %}
+                <span class="badge bg-success"><i class="bi bi-arrow-down"></i> Thu</span>
+                {% else %}
+                <span class="badge bg-danger"><i class="bi bi-arrow-up"></i> Chi</span>
+                {% endif %}
+            </td>
+            <td><small>{{ account_dict.get(v.cash_account_id, "—") }}</small></td>
+            <td>
+                {% if v.partner_name %}
+                {{ v.partner_name }}
+                <br><small class="text-muted">
+                    {% if v.partner_type == "CUSTOMER" %}KH
+                    {% elif v.partner_type == "SUPPLIER" %}NCC
+                    {% elif v.partner_type == "EMPLOYEE" %}NV
+                    {% else %}Khác{% endif %}
+                </small>
+                {% else %}—{% endif %}
+            </td>
+            <td><small>{{ v.reason }}</small></td>
+            <td class="text-end fw-bold {% if v.voucher_type == 'RECEIPT' %}text-success{% else %}text-danger{% endif %}">
+                {% if v.voucher_type == "RECEIPT" %}+{% else %}-{% endif %}{{ "{:,.0f}".format(v.amount) }} đ
+            </td>
+            <td class="text-center">
+                <a href="/accounting/vouchers/{{ v.id }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye"></i>
+                </a>
+                <form method="post" action="/accounting/vouchers/{{ v.id }}/delete"
+                      class="d-inline"
+                      onsubmit="return confirm('Xóa phiếu {{ v.code }}?\nSố dư quỹ sẽ được hoàn tác.')">
+                    <button class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">
+            Chưa có phiếu nào trong kỳ. Bấm "Phiếu thu" hoặc "Phiếu chi" để tạo.
+        </td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

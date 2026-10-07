@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Sổ S2d-HKD{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <h2><i class="bi bi-box-seam"></i> Sổ S2d-HKD — Chi tiết vật tư, hàng hóa</h2>
+    <div>
+        <button onclick="window.print()" class="btn btn-outline-dark">
+            <i class="bi bi-printer"></i> In
+        </button>
+        <a href="/accounting/reports" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Quay lại
+        </a>
+    </div>
+</div>
+
+<form method="get" class="row g-2 mb-3 no-print">
+    <div class="col-md-3">
+        <label class="form-label small">Từ ngày</label>
+        <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small">Đến ngày</label>
+        <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary me-2"><i class="bi bi-search"></i> Xem</button>
+        <a href="/accounting/reports/s2d" class="btn btn-outline-secondary">Hôm nay</a>
+    </div>
+</form>
+
+<div class="alert alert-info no-print">
+    <i class="bi bi-info-circle"></i>
+    <strong>Lưu ý:</strong> Sổ này tự động lấy dữ liệu từ module Kho (nhập/xuất kho). Để đảm bảo chính xác,
+    hãy đảm bảo toàn bộ phiếu nhập/xuất đã được ghi đủ.
+</div>
+
+<div class="print-area">
+    <div class="text-center mb-3">
+        <div class="fw-bold">{{ profile.business_name if profile else 'HỘ KINH DOANH' }}</div>
+        {% if profile and profile.tax_code %}<div>Mã số thuế: {{ profile.tax_code }}</div>{% endif %}
+    </div>
+
+    <div class="text-center mb-3">
+        <h4>SỔ CHI TIẾT VẬT LIỆU, DỤNG CỤ, SẢN PHẨM, HÀNG HÓA</h4>
+        <div><em>(Mẫu số S2d-HKD)</em></div>
+        <div class="mt-2">Từ ngày {{ date_from }} đến ngày {{ date_to }}</div>
+        <div class="small">Đơn vị tính: đồng</div>
+    </div>
+
+    {% if rows %}
+    <table class="table table-bordered table-sm">
+        <thead class="table-light text-center">
+            <tr>
+                <th rowspan="2" style="width: 80px;">Ngày</th>
+                <th rowspan="2">Mã hàng</th>
+                <th rowspan="2">Tên hàng</th>
+                <th rowspan="2" style="width: 50px;">ĐVT</th>
+                <th rowspan="2" style="width: 80px;">Số hiệu CT</th>
+                <th rowspan="2">Diễn giải</th>
+                <th colspan="2">Nhập</th>
+                <th colspan="2">Xuất</th>
+            </tr>
+            <tr>
+                <th style="width: 60px;">SL</th>
+                <th style="width: 90px;">Thành tiền</th>
+                <th style="width: 60px;">SL</th>
+                <th style="width: 90px;">Thành tiền</th>
+            </tr>
+            <tr class="text-center fst-italic small">
+                <td>(1)</td><td>(2)</td><td>(3)</td><td>(4)</td><td>(5)</td><td>(6)</td>
+                <td>(7)</td><td>(8)</td><td>(9)</td><td>(10)</td>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td class="text-center"><small>{{ r.date.strftime("%d/%m") }}</small></td>
+                <td><strong>{{ r.product.sku }}</strong></td>
+                <td>{{ r.product.name }}</td>
+                <td class="text-center"><small>{{ r.product.unit }}</small></td>
+                <td class="text-center"><small>{{ r.code }}</small></td>
+                <td><small>{{ r.diary }}</small></td>
+                <td class="text-center">
+                    {% if r.move_type == "IN" %}{{ r.quantity }}{% else %}—{% endif %}
+                </td>
+                <td class="text-end text-success">
+                    {% if r.move_type == "IN" %}{{ "{:,.0f}".format(r.amount) }}{% else %}—{% endif %}
+                </td>
+                <td class="text-center">
+                    {% if r.move_type == "OUT" %}{{ r.quantity }}{% else %}—{% endif %}
+                </td>
+                <td class="text-end text-danger">
+                    {% if r.move_type == "OUT" %}{{ "{:,.0f}".format(r.amount) }}{% else %}—{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="table-warning fw-bold">
+                <td colspan="6" class="text-end">TỔNG CỘNG:</td>
+                <td class="text-center">{{ rows | selectattr('move_type', 'equalto', 'IN') | map(attribute='quantity') | sum }}</td>
+                <td class="text-end text-success">
+                    {{ "{:,.0f}".format(rows | selectattr('move_type', 'equalto', 'IN') | map(attribute='amount') | sum) }}
+                </td>
+                <td class="text-center">{{ rows | selectattr('move_type', 'equalto', 'OUT') | map(attribute='quantity') | sum }}</td>
+                <td class="text-end text-danger">
+                    {{ "{:,.0f}".format(rows | selectattr('move_type', 'equalto', 'OUT') | map(attribute='amount') | sum) }}
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+    {% else %}
+    <div class="alert alert-warning text-center">
+        Không có phát sinh nhập/xuất kho trong kỳ
+    </div>
+    {% endif %}
+
+    <div class="small mt-2">
+        <em>- Sổ này phản ánh tình hình nhập - xuất - tồn của từng mặt hàng.</em>
+        <br><em>- Số liệu lấy từ phiếu nhập kho và phiếu xuất kho của module Kho.</em>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-6 text-center">
+            <strong>Người đại diện HKD</strong>
+            <div class="small">(Ký, họ tên, đóng dấu)</div>
+            <div style="height: 60px;"></div>
+        </div>
+        <div class="col-6 text-center">
+            <strong>Ngày ... tháng ... năm ...</strong>
+            <div class="small">Người lập sổ</div>
+            <div style="height: 60px;"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .no-print, nav, .navbar, .sidebar { display: none !important; }
+    body { font-size: 11px; }
+}
+</style>
+{% endblock %}

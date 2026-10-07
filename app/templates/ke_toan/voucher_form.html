@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Tạo phiếu thu/chi{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>
+        <i class="bi bi-receipt-cutoff"></i>
+        <span id="pageTitle">
+            {% if default_type == "PAYMENT" %}Tạo phiếu chi{% else %}Tạo phiếu thu{% endif %}
+        </span>
+    </h2>
+    <a href="/accounting/vouchers" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+{% if not accounts %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <strong>Chưa có tài khoản quỹ!</strong> Bạn cần tạo ít nhất 1 tài khoản quỹ trước khi tạo phiếu.
+    <a href="/accounting/cash-accounts/new" class="alert-link">Tạo tài khoản quỹ</a>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" action="/accounting/vouchers/create">
+                    <!-- Loại phiếu -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Loại phiếu</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="voucher_type" id="typeReceipt"
+                                   value="RECEIPT" autocomplete="off"
+                                   {% if default_type != "PAYMENT" %}checked{% endif %}>
+                            <label class="btn btn-outline-success" for="typeReceipt">
+                                <i class="bi bi-arrow-down-circle"></i> PHIẾU THU
+                            </label>
+
+                            <input type="radio" class="btn-check" name="voucher_type" id="typePayment"
+                                   value="PAYMENT" autocomplete="off"
+                                   {% if default_type == "PAYMENT" %}checked{% endif %}>
+                            <label class="btn btn-outline-danger" for="typePayment">
+                                <i class="bi bi-arrow-up-circle"></i> PHIẾU CHI
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Ngày chứng từ <span class="text-danger">*</span></label>
+                            <input type="date" name="voucher_date" class="form-control" required
+                                   id="voucherDate">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tài khoản quỹ <span class="text-danger">*</span></label>
+                            <select name="cash_account_id" class="form-select" required>
+                                {% for a in accounts %}
+                                <option value="{{ a.id }}">
+                                    {{ a.code }} - {{ a.name }}
+                                    ({{ "{:,.0f}".format(a.current_balance) }}đ)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Đối tượng</label>
+                            <select name="partner_type" class="form-select" id="partnerType">
+                                <option value="OTHER">-- Khác --</option>
+                                <option value="CUSTOMER">Khách hàng</option>
+                                <option value="SUPPLIER">Nhà cung cấp</option>
+                                <option value="EMPLOYEE">Nhân viên</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Tên đối tượng</label>
+                            <input type="text" name="partner_name" class="form-control"
+                                   placeholder="VD: Anh Nam, Công ty ABC...">
+                        </div>
+
+                            <div class="col-md-6">
+                            <label class="form-label">Số tiền (VNĐ) <span class="text-danger">*</span></label>
+                            <input type="text" id="amountInput" class="form-control form-control-lg"
+                                   inputmode="numeric" required placeholder="0"
+                                   autocomplete="off">
+                            <input type="hidden" name="amount" id="amountHidden">
+                            <small class="text-muted" id="amountText">0 đồng</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Khoản mục</label>
+                                <select name="category" class="form-select" id="categorySelect">
+                                <option value="">-- Không phân loại --</option>
+                                <optgroup label="Doanh thu (cho phiếu thu)">
+                                    <option value="DOANHTHU">DOANHTHU - Doanh thu bán hàng</option>
+                                    <option value="THUNHAPKHAC">THUNHAPKHAC - Thu nhập khác</option>
+                                </optgroup>
+                                <optgroup label="Chi phí (cho phiếu chi)">
+                                    <option value="GVHB">GVHB - Giá vốn hàng bán</option>
+                                    <option value="CPNC">CPNC - Chi phí nhân công</option>
+                                    <option value="CPKHTSCĐ">CPKHTSCĐ - Khấu hao TSCĐ</option>
+                                    <option value="CPDVMN">CPDVMN - Dịch vụ mua ngoài</option>
+                                    <option value="CPLV">CPLV - Chi phí lãi vay</option>
+                                    <option value="CPCK">CPCK - Chi phí chứng khoán</option>
+                                    <option value="THUE">THUE - Thuế phải nộp</option>
+                                    <option value="CHIPHIKHAC">CHIPHIKHAC - Chi phí khác</option>
+                                    <option value="KHAC">KHAC - Chi phí khác (cũ)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Lý do <span class="text-danger">*</span></label>
+                            <input type="text" name="reason" class="form-control" required
+                                   placeholder="VD: Thu tiền bán hàng, Chi trả NCC...">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Ghi chú</label>
+                            <textarea name="note" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                        <i class="bi bi-save"></i> Lưu phiếu
+                    </button>
+                    <a href="/accounting/vouchers" class="btn btn-secondary">Hủy</a>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h5 class="text-primary"><i class="bi bi-info-circle"></i> Hướng dẫn</h5>
+                <ul class="small mb-0">
+                    <li><strong>Phiếu thu:</strong> nhận tiền vào quỹ. Số dư quỹ sẽ <span class="text-success">tăng</span>.</li>
+                    <li><strong>Phiếu chi:</strong> xuất tiền khỏi quỹ. Số dư quỹ sẽ <span class="text-danger">giảm</span>.</li>
+                    <li>Không thể tạo phiếu trong tháng đã <a href="/accounting/periods">khóa</a>.</li>
+                    <li>Chọn <strong>Khoản mục</strong> để phân loại chi phí theo TT152.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Set ngày mặc định = hôm nay
+document.getElementById('voucherDate').valueAsDate = new Date();
+
+// Đổi tiêu đề theo loại phiếu
+document.querySelectorAll('input[name="voucher_type"]').forEach(el => {
+    el.addEventListener('change', updateTitle);
+});
+function updateTitle() {
+    const type = document.querySelector('input[name="voucher_type"]:checked').value;
+    document.getElementById('pageTitle').textContent =
+        type === 'RECEIPT' ? 'Tạo phiếu thu' : 'Tạo phiếu chi';
+}
+updateTitle();
+
+// ============================================================
+// FORMAT SỐ TIỀN VỚI DẤU CHẤM
+// ============================================================
+const amountInput = document.getElementById('amountInput');
+const amountHidden = document.getElementById('amountHidden');
+const amountText = document.getElementById('amountText');
+
+function readAmountVietnamese(num) {
+    if (!num || num <= 0) return '0 đồng';
+    num = parseInt(num);
+    const units = ['', 'nghìn', 'triệu', 'tỷ', 'nghìn tỷ'];
+    if (num < 1000) return num + ' đồng';
+
+    let result = '';
+    let unitIdx = 0;
+    while (num > 0) {
+        const chunk = num % 1000;
+        if (chunk > 0) {
+            result = chunk + ' ' + units[unitIdx] + (result ? ' ' + result : '');
+        }
+        num = Math.floor(num / 1000);
+        unitIdx++;
+    }
+    return result.trim() + ' đồng';
+}
+
+amountInput.addEventListener('input', function() {
+    let raw = this.value.replace(/[^\d]/g, '');
+    if (raw === '') {
+        this.value = '';
+        amountHidden.value = '';
+        amountText.textContent = '0 đồng';
+        return;
+    }
+    // Giới hạn 15 chữ số (999 nghìn tỷ)
+    raw = raw.slice(0, 15);
+    amountHidden.value = raw;
+    this.value = new Intl.NumberFormat('vi-VN').format(raw);
+    amountText.textContent = readAmountVietnamese(raw);
+});
+
+// Validate trước khi submit
+document.querySelector('form').addEventListener('submit', function(e) {
+    const val = parseInt(amountHidden.value);
+    if (!val || val <= 0) {
+        e.preventDefault();
+        alert('Vui lòng nhập số tiền hợp lệ (lớn hơn 0)');
+        amountInput.focus();
+    }
+});
+
+// Focus vào ô số tiền sau khi load
+amountInput.focus();
+</script>
+{% endblock %}

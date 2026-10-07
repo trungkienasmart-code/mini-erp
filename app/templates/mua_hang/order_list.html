@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Đơn mua hàng{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-file-text"></i> Đơn mua hàng</h2>
+    <div>
+        <a href="/purchase/orders/export{% if status %}?status={{ status }}{% endif %}"
+           class="btn btn-outline-success">
+            <i class="bi bi-file-earmark-excel"></i> Xuất CSV
+        </a>
+        <a href="/purchase/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Dashboard
+        </a>
+        <a href="/purchase/orders/new" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Tạo đơn mới
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-4">
+        <input type="text" name="q" class="form-control"
+               placeholder="Tìm theo mã đơn..." value="{{ keyword }}">
+    </div>
+    <div class="col-md-3">
+        <select name="supplier_id" class="form-select">
+            <option value="">-- Tất cả NCC --</option>
+            {% for s in suppliers %}
+            <option value="{{ s.id }}" {% if filter_sid == s.id %}selected{% endif %}>
+                {{ s.code }} - {{ s.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select name="status" class="form-select">
+            <option value="">-- Tất cả trạng thái --</option>
+            <option value="DRAFT" {% if status == "DRAFT" %}selected{% endif %}>Nháp</option>
+            <option value="APPROVED" {% if status == "APPROVED" %}selected{% endif %}>Đã duyệt</option>
+            <option value="RECEIVED" {% if status == "RECEIVED" %}selected{% endif %}>Đã nhận</option>
+            <option value="PARTIAL" {% if status == "PARTIAL" %}selected{% endif %}>Trả 1 phần</option>
+            <option value="PAID" {% if status == "PAID" %}selected{% endif %}>Đã TT</option>
+            <option value="CANCELLED" {% if status == "CANCELLED" %}selected{% endif %}>Đã hủy</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-secondary"><i class="bi bi-search"></i> Lọc</button>
+        {% if keyword or status or filter_sid %}
+        <a href="/purchase/orders" class="btn btn-outline-danger">
+            <i class="bi bi-x-circle"></i>
+        </a>
+        {% endif %}
+    </div>
+</form>
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Mã đơn</th>
+            <th>Ngày</th>
+            <th>NCC</th>
+            <th class="text-end">Tổng tiền</th>
+            <th class="text-end">Đã trả</th>
+            <th class="text-end">Còn lại</th>
+            <th>Đến hạn</th>
+            <th class="text-center">Trạng thái</th>
+            <th class="text-center" style="width: 120px;">Thao tác</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for o in orders %}
+        <tr>
+            <td>
+                <a href="/purchase/orders/{{ o.id }}" class="text-decoration-none">
+                    <strong>{{ o.code }}</strong>
+                </a>
+            </td>
+            <td><small>{{ o.created_at.strftime("%d/%m/%y %H:%M") }}</small></td>
+            <td>{{ supplier_dict.get(o.supplier_id, "N/A") }}</td>
+            <td class="text-end fw-bold">{{ "{:,.0f}".format(o.total_amount) }} đ</td>
+            <td class="text-end text-success">{{ "{:,.0f}".format(o.paid_amount) }} đ</td>
+            <td class="text-end">
+                {% set remaining = o.total_amount - o.paid_amount %}
+                {% if remaining > 0 %}
+                <span class="text-danger fw-bold">{{ "{:,.0f}".format(remaining) }} đ</span>
+                {% else %}
+                <span class="text-muted">0 đ</span>
+                {% endif %}
+            </td>
+            <td><small>{{ o.due_date.strftime("%d/%m/%y") if o.due_date else "—" }}</small></td>
+            <td class="text-center">
+                {% if o.status == "DRAFT" %}
+                <span class="badge bg-secondary">Nháp</span>
+                {% elif o.status == "APPROVED" %}
+                <span class="badge bg-info">Đã duyệt</span>
+                {% elif o.status == "RECEIVED" %}
+                <span class="badge bg-primary">Đã nhận</span>
+                {% elif o.status == "PARTIAL" %}
+                <span class="badge bg-warning text-dark">Trả 1 phần</span>
+                {% elif o.status == "PAID" %}
+                <span class="badge bg-success">Đã TT</span>
+                {% elif o.status == "CANCELLED" %}
+                <span class="badge bg-dark">Đã hủy</span>
+                {% endif %}
+            </td>
+            <td class="text-center">
+                <a href="/purchase/orders/{{ o.id }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye"></i>
+                </a>
+                <a href="/purchase/orders/{{ o.id }}/print" target="_blank"
+                   class="btn btn-sm btn-outline-dark">
+                    <i class="bi bi-printer"></i>
+                </a>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="text-center text-muted py-4">Chưa có đơn mua nào</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

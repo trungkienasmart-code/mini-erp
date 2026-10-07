@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-box-seam"></i> {{ product.name }}</h2>
+    <div>
+        <a href="/inventory/products/{{ product.id }}/print-barcodes" class="btn btn-outline-dark" target="_blank">
+            <i class="bi bi-upc-scan"></i> In tem
+        </a>
+        <a href="/inventory/products/{{ product.id }}/edit" class="btn btn-primary">
+            <i class="bi bi-pencil"></i> Sửa
+        </a>
+        <a href="/inventory/products" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Quay lại
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger">{{ request.query_params.get('error') }}</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success">{{ request.query_params.get('success') }}</div>
+{% endif %}
+
+<div class="row">
+    <!-- Cột trái: Thông tin -->
+    <div class="col-md-5">
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">Thông tin chung</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><th width="40%">Mã SKU</th><td><strong>{{ product.sku }}</strong></td></tr>
+                    <tr><th>Đơn vị tồn kho</th><td>{{ product.unit }}</td></tr>
+                    <tr><th>Danh mục</th><td>{{ category.name if category else "—" }}</td></tr>
+                    <tr><th>Nhà cung cấp</th><td>{{ supplier.name if supplier else "—" }}</td></tr>
+                    <tr><th>Thuế VAT</th><td>{{ product.tax_rate }}%</td></tr>
+                    <tr><th>Phương pháp giá vốn</th>
+                        <td><span class="badge bg-info text-dark">{{ product.cost_method }}</span></td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header bg-success text-white">Tồn kho & Giá</div>
+            <div class="card-body">
+                <div class="row text-center mb-2">
+                    <div class="col">
+                        <div class="fs-3 fw-bold {% if product.stock_quantity <= product.min_stock %}text-danger{% else %}text-primary{% endif %}">
+                            {{ product.stock_quantity }}
+                        </div>
+                        <small class="text-muted">Tồn kho ({{ product.unit }})</small>
+                    </div>
+                    <div class="col">
+                        <div class="fs-3 fw-bold text-secondary">{{ product.min_stock }}</div>
+                        <small class="text-muted">Tối thiểu</small>
+                    </div>
+                </div>
+                <hr>
+                <table class="table table-sm mb-0">
+                    <tr><th>Giá nhập gần nhất</th>
+                        <td class="text-end">{{ "{:,.0f}".format(product.cost_price) }} đ</td></tr>
+                    <tr><th>Giá bán lẻ</th>
+                        <td class="text-end">{{ "{:,.0f}".format(product.price) }} đ</td></tr>
+                    <tr><th>Margin</th>
+                        <td class="text-end">
+                            {% if margin < 10 %}
+                            <span class="badge bg-danger">{{ "%.1f"|format(margin) }}%</span>
+                            {% elif margin < 20 %}
+                            <span class="badge bg-warning text-dark">{{ "%.1f"|format(margin) }}%</span>
+                            {% else %}
+                            <span class="badge bg-success">{{ "%.1f"|format(margin) }}%</span>
+                            {% endif %}
+                        </td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Đơn vị bán hàng -->
+        <div class="card mb-3">
+            <div class="card-header bg-secondary text-white">
+                <i class="bi bi-boxes"></i> Đơn vị bán hàng
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>Tên</th><th class="text-center">Hệ số</th><th class="text-end">Giá bán</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for u in uoms %}
+                        <tr>
+                            <td>{{ u.name }}</td>
+                            <td class="text-center">{{ u.factor }}</td>
+                            <td class="text-end">{{ "{:,.0f}".format(u.sale_price) }} đ</td>
+                            <td class="text-end">
+                                <form method="post" action="/inventory/uoms/{{ u.id }}/delete"
+                                      class="d-inline" onsubmit="return confirm('Xóa đơn vị này?')">
+                                    <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center text-muted">Chưa có đơn vị phụ</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <form method="post" action="/inventory/products/{{ product.id }}/uoms/create" class="row g-1">
+                    <div class="col-5"><input type="text" name="name" class="form-control form-control-sm"
+                                              placeholder="Lốc, Thùng..." required></div>
+                    <div class="col-3"><input type="number" name="factor" class="form-control form-control-sm"
+                                              placeholder="Hệ số" min="1" required></div>
+                    <div class="col-3"><input type="number" name="sale_price" class="form-control form-control-sm"
+                                              placeholder="Giá" value="0"></div>
+                    <div class="col-1"><button class="btn btn-sm btn-success w-100"><i class="bi bi-plus"></i></button></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Mã vạch -->
+        <div class="card mb-3">
+            <div class="card-header bg-dark text-white">
+                <i class="bi bi-upc"></i> Mã vạch
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>Mã vạch</th><th>Đơn vị</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for b in barcodes %}
+                        <tr>
+                            <td><code>{{ b.code }}</code></td>
+                            <td>
+                                {% for u in uoms %}{% if u.id == b.uom_id %}{{ u.name }}{% endif %}{% endfor %}
+                                {% if not b.uom_id %}<em class="text-muted">{{ product.unit }}</em>{% endif %}
+                            </td>
+                            <td class="text-end">
+                                <form method="post" action="/inventory/barcodes/{{ b.id }}/delete"
+                                      class="d-inline" onsubmit="return confirm('Xóa mã vạch này?')">
+                                    <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="text-center text-muted">Chưa có mã vạch</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <form method="post" action="/inventory/products/{{ product.id }}/barcodes/create" class="row g-1">
+                    <div class="col-5"><input type="text" name="code" class="form-control form-control-sm"
+                                              placeholder="Mã vạch" required></div>
+                    <div class="col-5">
+                        <select name="uom_id" class="form-select form-select-sm">
+                            <option value="">-- {{ product.unit }} (cơ bản) --</option>
+                            {% for u in uoms %}<option value="{{ u.id }}">{{ u.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-2"><button class="btn btn-sm btn-success w-100"><i class="bi bi-plus"></i></button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cột phải: Lịch sử -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-clock-history"></i> Lịch sử Nhập/Xuất ({{ moves|length }})
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Ngày</th><th>Loại</th>
+                            <th class="text-end">SL</th>
+                            <th class="text-end">Đơn giá</th>
+                            <th class="text-end">Giá vốn</th>
+                            <th>Lý do</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in moves %}
+                        <tr>
+                            <td><small>{{ m.created_at.strftime("%d/%m/%y %H:%M") }}</small></td>
+                            <td>
+                                {% if m.move_type == "IN" %}
+                                <span class="badge bg-success">Nhập</span>
+                                {% else %}
+                                <span class="badge bg-danger">Xuất</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ m.quantity }}</td>
+                            <td class="text-end"><small>{{ "{:,.0f}".format(m.unit_price) }}</small></td>
+                            <td class="text-end">
+                                {% if m.move_type == "OUT" %}
+                                <small class="text-info">{{ "{:,.0f}".format(m.cost_price_at_move) }}</small>
+                                {% else %}<small class="text-muted">—</small>{% endif %}
+                            </td>
+                            <td><small>{{ m.export_reason or m.note or "—" }}</small></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="text-center text-muted py-3">
+                            Chưa có giao dịch nào
+                        </td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

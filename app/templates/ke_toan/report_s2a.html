@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Sổ S2a-HKD{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <h2><i class="bi bi-journal-text"></i> Sổ S2a-HKD</h2>
+    <div>
+        <button onclick="window.print()" class="btn btn-outline-dark">
+            <i class="bi bi-printer"></i> In
+        </button>
+        <a href="/accounting/reports" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Quay lại
+        </a>
+    </div>
+</div>
+
+<form method="get" class="row g-2 mb-3 no-print">
+    <div class="col-md-3">
+        <label class="form-label small">Từ ngày</label>
+        <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small">Đến ngày</label>
+        <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary me-2"><i class="bi bi-search"></i> Xem</button>
+    </div>
+</form>
+
+<div class="print-area">
+    <div class="text-center mb-3">
+        <div class="fw-bold">{{ profile.business_name if profile else 'HỘ KINH DOANH' }}</div>
+        {% if profile and profile.tax_code %}<div>Mã số thuế: {{ profile.tax_code }}</div>{% endif %}
+        {% if profile and profile.address %}<div>Địa chỉ: {{ profile.address }}</div>{% endif %}
+    </div>
+
+    <div class="text-center mb-3">
+        <h4>SỔ DOANH THU BÁN HÀNG HÓA, DỊCH VỤ</h4>
+        <div><em>(Mẫu số S2a-HKD)</em></div>
+        <div class="mt-2">Từ ngày {{ date_from }} đến ngày {{ date_to }}</div>
+        <div class="small">Đơn vị tính: đồng</div>
+    </div>
+
+    <table class="table table-bordered table-sm">
+        <thead class="table-light text-center">
+            <tr>
+                <th>Ngày, tháng</th>
+                <th>Số hiệu chứng từ</th>
+                <th>Diễn giải</th>
+                <th>Doanh thu</th>
+                <th>Thuế GTGT</th>
+                <th>Thuế TNCN</th>
+                <th>Ghi chú</th>
+            </tr>
+            <tr class="text-center fst-italic small">
+                <td>(1)</td><td>(2)</td><td>(3)</td><td>(4)</td><td>(5)</td><td>(6)</td><td>(7)</td>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td class="text-center">{{ r.date.strftime("%d/%m/%Y") }}</td>
+                <td>{{ r.code }}</td>
+                <td>{{ r.diary }}</td>
+                <td class="text-end">{{ "{:,.0f}".format(r.amount) }}</td>
+                <td class="text-end">
+                    {% if profile %}
+                    {{ "{:,.0f}".format(r.amount * profile.vat_rate_retail / 100) }}
+                    {% else %}—{% endif %}
+                </td>
+                <td class="text-end">
+                    {% if profile %}
+                    {{ "{:,.0f}".format(r.amount * profile.tncn_rate / 100) }}
+                    {% else %}—{% endif %}
+                </td>
+                <td>{{ r.note }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center text-muted py-3">Không có phát sinh trong kỳ</td></tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="table-warning fw-bold">
+                <td colspan="3" class="text-end">TỔNG CỘNG:</td>
+                <td class="text-end">{{ "{:,.0f}".format(total) }}</td>
+                <td class="text-end">
+                    {% if profile %}{{ "{:,.0f}".format(total * profile.vat_rate_retail / 100) }}{% else %}—{% endif %}
+                </td>
+                <td class="text-end">
+                    {% if profile %}{{ "{:,.0f}".format(total * profile.tncn_rate / 100) }}{% else %}—{% endif %}
+                </td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="small mt-2">
+        <em>- Thuế GTGT tính theo tỷ lệ {{ profile.vat_rate_retail if profile else 1 }}% trên doanh thu bán lẻ.</em>
+        <br><em>- Thuế TNCN tính theo tỷ lệ {{ profile.tncn_rate if profile else 0.5 }}% trên doanh thu.</em>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-6 text-center">
+            <strong>Người đại diện HKD</strong>
+            <div class="small">(Ký, họ tên, đóng dấu)</div>
+            <div style="height: 60px;"></div>
+        </div>
+        <div class="col-6 text-center">
+            <strong>Ngày ... tháng ... năm ...</strong>
+            <div class="small">Người lập sổ</div>
+            <div style="height: 60px;"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .no-print, nav, .navbar, .sidebar { display: none !important; }
+    body { font-size: 12px; }
+}
+</style>
+{% endblock %}

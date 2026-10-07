@@ -1,0 +1,591 @@
+{% extends "base.html" %}
+{% block title %}POS - Bán hàng{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0"><i class="bi bi-shop"></i> POS — Bán hàng</h5>
+    <div>
+        <span class="badge bg-success fs-6 me-2">
+            <i class="bi bi-clock"></i> Ca: {{ open_shift.code }}
+        </span>
+        <a href="/sales/shift/close" class="btn btn-warning btn-sm"
+           onclick="return confirm('Đóng ca? Bạn sẽ không thể bán hàng cho đến khi mở ca mới.')">
+            <i class="bi bi-lock"></i> Đóng ca
+        </a>
+        <a href="/sales/" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-house"></i> Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="pos-container">
+    <!-- Cột trái: Sản phẩm -->
+    <div class="pos-left">
+        <div class="pos-search">
+            <input type="text" id="barcodeInput" class="form-control form-control-lg"
+                   placeholder="🔍 Quét mã vạch hoặc gõ tên sản phẩm (F2)..."
+                   autocomplete="off">
+            <div id="searchResults" class="search-results"></div>
+        </div>
+
+        <div class="pos-categories" id="catTabs">
+            <button class="btn btn-sm btn-outline-primary active" data-cat="ALL">Tất cả</button>
+            {% set cats = [] %}
+            {% for p in products %}
+                {% if p.category not in cats %}
+                    {% set _ = cats.append(p.category) %}
+                    <button class="btn btn-sm btn-outline-primary" data-cat="{{ p.category }}">{{ p.category }}</button>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="product-grid" id="productGrid">
+            {% for p in products %}
+            <div class="product-card" data-id="{{ p.id }}" data-cat="{{ p.category }}"
+                 data-sku="{{ p.sku }}" data-name="{{ p.name }}"
+                 data-price="{{ p.price }}" data-tax="{{ p.tax_rate }}" data-unit="{{ p.unit }}"
+                 data-stock="{{ p.stock }}">
+                <div class="p-name">{{ p.name }}</div>
+                <div class="p-sku">{{ p.sku }}</div>
+                <div class="p-price">{{ "{:,.0f}".format(p.price) }} đ</div>
+                <div class="p-stock {% if p.stock <= 0 %}text-danger{% endif %}">
+                    Tồn: {{ p.stock }} {{ p.unit }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Cột phải: Giỏ hàng + thanh toán -->
+    <div class="pos-right">
+        <div class="cart-header">
+            <h5 class="mb-0"><i class="bi bi-cart"></i> Giỏ hàng</h5>
+            <button class="btn btn-sm btn-outline-danger" onclick="clearCart()">
+                <i class="bi bi-trash"></i> Xóa hết
+            </button>
+        </div>
+
+        <div class="customer-row">
+            <label class="small text-muted">Khách hàng:</label>
+            <select id="customerSelect" class="form-select form-select-sm">
+                <option value="{{ default_customer.id }}">{{ default_customer.name }}</option>
+                {% for c in customers %}
+                    {% if c.id != default_customer.id %}
+                    <option value="{{ c.id }}">{{ c.name }} {% if c.phone %}({{ c.phone }}){% endif %}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="cart-items" id="cartItems">
+            <div class="empty-cart">
+                <i class="bi bi-cart-x" style="font-size: 3rem; color: #ccc;"></i>
+                <p class="text-muted mt-2">Giỏ hàng trống</p>
+                <p class="text-muted small">Quét mã vạch hoặc click sản phẩm để thêm</p>
+            </div>
+        </div>
+
+        <div class="cart-footer">
+            <div class="row-summary">
+                <span>Tạm tính:</span>
+                <span id="subtotal">0 đ</span>
+            </div>
+            <div class="row-summary">
+                <span>VAT:</span>
+                <span id="taxAmount">0 đ</span>
+            </div>
+            <div class="row-summary">
+                <span>Giảm giá:</span>
+                <input type="number" id="discountInput" class="form-control form-control-sm discount-input"
+                       value="0" step="1000" oninput="recalc()" style="width: 120px;">
+            </div>
+            <div class="row-summary total">
+                <span>TỔNG:</span>
+                <span id="totalAmount" class="fs-4 fw-bold text-danger">0 đ</span>
+            </div>
+            <button class="btn btn-success btn-lg w-100 mt-2" onclick="openCheckout()">
+                <i class="bi bi-credit-card"></i> THANH TOÁN (F9)
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal thanh toán -->
+<div class="modal fade" id="checkoutModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Xác nhận thanh toán</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tổng tiền:</label>
+                            <div class="fs-3 text-danger fw-bold" id="modalTotal">0 đ</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Hình thức thanh toán</label>
+                            <select id="paymentMethod" class="form-select">
+                                <option value="CASH">💵 Tiền mặt</option>
+                                <option value="BANK">🏦 Chuyển khoản</option>
+                                <option value="CARD">💳 Thẻ</option>
+                                <option value="DEBT">📝 Ghi nợ</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Khách đưa (VNĐ)</label>
+                            <input type="number" id="paidAmount" class="form-control form-control-lg"
+                                   step="1000" value="0" oninput="calcChange()">
+                            <div class="mt-2 small">
+                                Tiền thối: <span id="changeAmount" class="fw-bold text-success fs-5">0 đ</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">SĐT khách hàng (nếu có)</label>
+                            <input type="tel" id="customerPhone" class="form-control"
+                                   placeholder="09xx xxx xxx">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check mb-2">
+                            <input type="checkbox" id="wantVat" class="form-check-input"
+                                   onchange="toggleVatForm()">
+                            <label class="form-check-label fw-bold" for="wantVat">
+                                Khách yêu cầu xuất hóa đơn VAT
+                            </label>
+                        </div>
+                        <div id="vatForm" style="display: none;">
+    <div class="mb-2">
+        <label class="form-label small text-muted mb-1">Mã số thuế (nhập để tra cứu)</label>
+        <div class="input-group input-group-sm">
+            <input type="text" id="vatTaxCode" class="form-control form-control-sm"
+                   placeholder="Nhập MST rồi Tab/Enter để tra cứu" autocomplete="off">
+            <button type="button" class="btn btn-outline-primary" onclick="lookupVat()">
+                <i class="bi bi-search"></i> Tra
+            </button>
+        </div>
+        <small id="vatLookupMsg" class="text-muted"></small>
+    </div>
+    <div class="mb-2">
+        <input type="text" id="vatCompany" class="form-control form-control-sm"
+               placeholder="Tên công ty">
+    </div>
+    <div class="mb-2">
+        <input type="text" id="vatAddress" class="form-control form-control-sm"
+               placeholder="Địa chỉ">
+    </div>
+    <div class="mb-2">
+        <input type="email" id="vatEmail" class="form-control form-control-sm"
+               placeholder="Email nhận hóa đơn">
+    </div>
+</div>
+                        <div class="mb-2">
+                            <label class="form-label">Ghi chú đơn hàng</label>
+                            <textarea id="orderNote" class="form-control form-control-sm" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-success btn-lg" onclick="submitOrder()">
+                    <i class="bi bi-check-circle"></i> XÁC NHẬN & IN BILL
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.pos-container { display: flex; gap: 10px; height: calc(100vh - 120px); }
+.pos-left { flex: 1; display: flex; flex-direction: column; }
+.pos-right { width: 400px; display: flex; flex-direction: column; background: #f8f9fa; border-radius: 8px; }
+
+.pos-search { position: relative; margin-bottom: 10px; }
+.search-results { position: absolute; top: 100%; left: 0; right: 0; background: white;
+                  border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto;
+                  z-index: 100; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+.search-results.show { display: block; }
+.search-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; }
+.search-item:hover { background: #e9ecef; }
+
+.pos-categories { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+
+.product-grid { flex: 1; overflow-y: auto; display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 8px; align-content: start; }
+.product-card { background: white; border: 1px solid #dee2e6; border-radius: 8px;
+                padding: 10px; cursor: pointer; transition: all 0.15s; text-align: center; }
+.product-card:hover { border-color: #0d6efd; transform: translateY(-2px);
+                      box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+.product-card .p-name { font-weight: 600; font-size: 0.9rem; min-height: 2.4em;
+                        overflow: hidden; margin-bottom: 4px; }
+.product-card .p-sku { font-size: 0.75rem; color: #666; }
+.product-card .p-price { color: #d00; font-weight: bold; font-size: 1rem; }
+.product-card .p-stock { font-size: 0.75rem; color: #666; }
+
+.cart-header { display: flex; justify-content: space-between; align-items: center;
+               padding: 10px; background: white; border-radius: 8px 8px 0 0; }
+.customer-row { padding: 8px 10px; background: white; border-top: 1px solid #eee; }
+
+.cart-items { flex: 1; overflow-y: auto; background: white; padding: 5px; }
+.empty-cart { text-align: center; padding: 40px 20px; }
+
+.cart-item { display: grid; grid-template-columns: 1fr auto auto auto;
+             gap: 5px; align-items: center; padding: 8px;
+             border-bottom: 1px solid #eee; }
+.cart-item .ci-name { font-size: 0.85rem; font-weight: 600; }
+.cart-item .ci-sku { font-size: 0.7rem; color: #666; }
+.cart-item .ci-price { font-size: 0.85rem; }
+.cart-item .qty-control { display: flex; align-items: center; gap: 3px; }
+.cart-item .qty-control button { width: 25px; height: 25px; padding: 0; font-size: 0.8rem; }
+.cart-item .qty-control input { width: 45px; text-align: center; font-size: 0.85rem; padding: 2px; }
+.cart-item .ci-total { font-weight: bold; text-align: right; font-size: 0.9rem;
+                       min-width: 80px; }
+
+.cart-footer { padding: 10px; background: white; border-top: 2px solid #ddd; border-radius: 0 0 8px 8px; }
+.row-summary { display: flex; justify-content: space-between; align-items: center;
+               margin-bottom: 5px; font-size: 0.9rem; }
+.row-summary.total { font-size: 1.1rem; border-top: 1px solid #ddd; padding-top: 8px; }
+.discount-input { text-align: right; }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let cart = [];
+let products = {{ products | tojson }};
+let defaultCustomerId = {{ default_customer.id }};
+let checkoutModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
+
+function formatMoney(n) {
+    return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' đ';
+}
+
+// ============ THÊM SẢN PHẨM VÀO GIỎ ============
+function addToCart(product, uom = null) {
+    const pid = product.id;
+    const uomId = uom ? uom.id : null;
+    const factor = uom ? uom.factor : 1;
+    const price = uom ? uom.sale_price : product.price;
+    const unitName = uom ? uom.name : product.unit;
+
+    const key = `${pid}-${uomId || 0}`;
+    const existing = cart.find(i => i.key === key);
+
+    if (existing) {
+        existing.quantity += 1;
+    } else {
+        cart.push({
+            key: key,
+            product_id: pid,
+            uom_id: uomId,
+            sku: product.sku,
+            name: product.name,
+            unit: unitName,
+            factor: factor,
+            quantity: 1,
+            unit_price: price,
+            tax_rate: product.tax_rate || 0,
+            stock: product.stock,
+        });
+    }
+    renderCart();
+}
+
+// ============ RENDER GIỎ HÀNG ============
+function renderCart() {
+    const container = document.getElementById('cartItems');
+    if (cart.length === 0) {
+        container.innerHTML = `
+            <div class="empty-cart">
+                <i class="bi bi-cart-x" style="font-size: 3rem; color: #ccc;"></i>
+                <p class="text-muted mt-2">Giỏ hàng trống</p>
+                <p class="text-muted small">Quét mã vạch hoặc click sản phẩm để thêm</p>
+            </div>`;
+    } else {
+        container.innerHTML = cart.map((item, idx) => `
+            <div class="cart-item">
+                <div>
+                    <div class="ci-name">${item.name}</div>
+                    <div class="ci-sku">${item.sku} · ${item.unit}</div>
+                    <div class="ci-price">${formatMoney(item.unit_price)}</div>
+                </div>
+                <div class="qty-control">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="changeQty(${idx}, -1)">−</button>
+                    <input type="number" value="${item.quantity}" min="1"
+                           onchange="setQty(${idx}, this.value)">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="changeQty(${idx}, 1)">+</button>
+                </div>
+                <div class="ci-total">${formatMoney(item.quantity * item.unit_price)}</div>
+                <button class="btn btn-sm btn-outline-danger" onclick="removeItem(${idx})">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+    recalc();
+}
+
+function changeQty(idx, delta) {
+    cart[idx].quantity += delta;
+    if (cart[idx].quantity < 1) cart[idx].quantity = 1;
+    renderCart();
+}
+
+function setQty(idx, val) {
+    cart[idx].quantity = Math.max(1, parseInt(val) || 1);
+    renderCart();
+}
+
+function removeItem(idx) {
+    cart.splice(idx, 1);
+    renderCart();
+}
+
+function clearCart() {
+    if (cart.length === 0) return;
+    if (!confirm('Xóa toàn bộ giỏ hàng?')) return;
+    cart = [];
+    renderCart();
+}
+
+// ============ TÍNH TOÁN ============
+function recalc() {
+    let subtotal = 0, tax = 0;
+    cart.forEach(i => {
+        const lineAmount = i.quantity * i.unit_price;
+        subtotal += lineAmount;
+        tax += lineAmount * i.tax_rate / 100;
+    });
+    const discount = parseFloat(document.getElementById('discountInput').value) || 0;
+    const total = Math.max(0, subtotal + tax - discount);
+
+    document.getElementById('subtotal').textContent = formatMoney(subtotal);
+    document.getElementById('taxAmount').textContent = formatMoney(tax);
+    document.getElementById('totalAmount').textContent = formatMoney(total);
+    document.getElementById('modalTotal').textContent = formatMoney(total);
+    document.getElementById('totalAmount').dataset.value = total;
+
+    if (document.getElementById('paidAmount').value == 0) {
+        document.getElementById('paidAmount').value = Math.round(total);
+    }
+    calcChange();
+}
+
+function calcChange() {
+    const total = parseFloat(document.getElementById('totalAmount').dataset.value) || 0;
+    const paid = parseFloat(document.getElementById('paidAmount').value) || 0;
+    const change = paid - total;
+    document.getElementById('changeAmount').textContent = change >= 0 ? formatMoney(change) : '0 đ';
+}
+
+// ============ SỰ KIỆN ============
+document.querySelectorAll('.product-card').forEach(card => {
+    card.addEventListener('click', () => {
+        const p = products.find(x => x.id === parseInt(card.dataset.id));
+        if (p) addToCart(p);
+    });
+});
+
+// Filter theo category
+document.querySelectorAll('#catTabs .btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#catTabs .btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const cat = btn.dataset.cat;
+        document.querySelectorAll('.product-card').forEach(c => {
+            c.style.display = (cat === 'ALL' || c.dataset.cat === cat) ? '' : 'none';
+        });
+    });
+});
+
+// Ô tìm kiếm / quét mã
+const barcodeInput = document.getElementById('barcodeInput');
+const searchResults = document.getElementById('searchResults');
+
+barcodeInput.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const code = barcodeInput.value.trim();
+        if (!code) return;
+        await handleBarcode(code);
+        barcodeInput.value = '';
+        searchResults.classList.remove('show');
+    }
+});
+
+barcodeInput.addEventListener('input', async () => {
+    const q = barcodeInput.value.trim();
+    if (q.length < 2) { searchResults.classList.remove('show'); return; }
+
+    try {
+        const res = await fetch('/sales/api/search-product?q=' + encodeURIComponent(q));
+        const data = await res.json();
+        if (data.products.length === 0) {
+            searchResults.classList.remove('show');
+            return;
+        }
+        searchResults.innerHTML = data.products.map(p => `
+            <div class="search-item" onclick="pickProduct(${p.id})">
+                <strong>${p.sku}</strong> - ${p.name}
+                <span class="text-danger ms-2">${formatMoney(p.price)}</span>
+                <span class="text-muted small ms-2">Tồn: ${p.stock} ${p.unit}</span>
+            </div>
+        `).join('');
+        searchResults.classList.add('show');
+    } catch(e) { console.error(e); }
+});
+
+async function handleBarcode(code) {
+    try {
+        const res = await fetch('/sales/api/lookup-barcode?code=' + encodeURIComponent(code));
+        const data = await res.json();
+        if (!data.found) {
+            // Thử tìm theo SKU
+            const p = products.find(x => x.sku === code);
+            if (p) {
+                addToCart(p);
+            } else {
+                alert('Không tìm thấy mã vạch: ' + code);
+            }
+            return;
+        }
+        const product = products.find(x => x.id === data.product_id);
+        if (product) {
+            if (data.uom_id) {
+                addToCart(product, { id: data.uom_id, factor: data.factor,
+                                     sale_price: data.price, name: data.uom_name });
+            } else {
+                addToCart(product);
+            }
+        }
+    } catch(e) { console.error(e); }
+}
+
+function pickProduct(pid) {
+    const p = products.find(x => x.id === pid);
+    if (p) addToCart(p);
+    barcodeInput.value = '';
+    searchResults.classList.remove('show');
+    barcodeInput.focus();
+}
+
+// Phím tắt
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'F2') { e.preventDefault(); barcodeInput.focus(); }
+    if (e.key === 'F9') { e.preventDefault(); openCheckout(); }
+});
+
+// ============ CHECKOUT ============
+function openCheckout() {
+    if (cart.length === 0) { alert('Giỏ hàng trống!'); return; }
+    recalc();
+    checkoutModal.show();
+}
+
+function toggleVatForm() {
+    document.getElementById('vatForm').style.display =
+        document.getElementById('wantVat').checked ? 'block' : 'none';
+}
+
+async function submitOrder() {
+    const total = parseFloat(document.getElementById('totalAmount').dataset.value) || 0;
+    const paid = parseFloat(document.getElementById('paidAmount').value) || 0;
+    const paymentMethod = document.getElementById('paymentMethod').value;
+
+    // Nếu trả tiền mặt → bắt buộc đủ tiền
+    if (paymentMethod === 'CASH' && paid < total) {
+        alert('Số tiền khách đưa chưa đủ!');
+        return;
+    }
+
+    const payload = {
+        customer_id: document.getElementById('customerSelect').value,
+        order_type: "POS",
+        payment_method: paymentMethod,
+        discount_amount: parseFloat(document.getElementById('discountInput').value) || 0,
+        note: document.getElementById('orderNote').value,
+        want_vat_invoice: document.getElementById('wantVat').checked,
+        vat_company_name: document.getElementById('vatCompany').value,
+        vat_tax_code: document.getElementById('vatTaxCode').value,
+        vat_address: document.getElementById('vatAddress').value,
+        vat_email: document.getElementById('vatEmail').value,
+        customer_phone: document.getElementById('customerPhone').value,
+        paid_amount: paymentMethod === 'DEBT' ? 0 : total,
+	customer_paid: paymentMethod === 'CASH' ? paid : 0,
+        lines: cart.map(i => ({
+            product_id: i.product_id,
+            uom_id: i.uom_id,
+            quantity: i.quantity,
+            unit_price: i.unit_price,
+            discount_percent: 0,
+            tax_rate: i.tax_rate,
+        })),
+    };
+
+    try {
+        const res = await fetch('/sales/pos/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (data.success) {
+            checkoutModal.hide();
+            // Mở trang in
+            const printWin = window.open(data.print_url, '_blank');
+            // Clear cart
+            cart = [];
+            document.getElementById('discountInput').value = 0;
+            document.getElementById('customerPhone').value = '';
+            document.getElementById('wantVat').checked = false;
+            toggleVatForm();
+            renderCart();
+// ============ VAT LOOKUP ============
+async function lookupVat() {
+    const taxCode = document.getElementById('vatTaxCode').value.trim();
+    const msg = document.getElementById('vatLookupMsg');
+    if (!taxCode) { msg.textContent = ''; return; }
+
+    try {
+        const res = await fetch('/sales/api/vat-customer?tax_code=' + encodeURIComponent(taxCode));
+        const data = await res.json();
+        if (data.found) {
+            document.getElementById('vatCompany').value = data.company_name || '';
+            document.getElementById('vatAddress').value = data.address || '';
+            document.getElementById('vatEmail').value = data.email || '';
+            if (data.phone && !document.getElementById('customerPhone').value) {
+                document.getElementById('customerPhone').value = data.phone;
+            }
+            msg.innerHTML = '<span class="text-success">✓ Đã tải thông tin</span>';
+        } else {
+            msg.innerHTML = '<span class="text-warning">Chưa có trong danh bạ. Nhập tay và hệ thống sẽ lưu lại.</span>';
+        }
+    } catch (e) {
+        console.error(e);
+        msg.innerHTML = '<span class="text-danger">Lỗi tra cứu</span>';
+    }
+}
+
+// Tự động tra khi nhập MST và bấm Tab/Enter
+document.getElementById('vatTaxCode').addEventListener('blur', lookupVat);
+document.getElementById('vatTaxCode').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); lookupVat(); }
+});
+
+            barcodeInput.focus();
+        } else {
+            alert('Lỗi: ' + data.message);
+        }
+    } catch(e) {
+        alert('Lỗi kết nối: ' + e);
+    }
+}
+
+// Khởi động
+barcodeInput.focus();
+renderCart();
+</script>
+{% endblock %}

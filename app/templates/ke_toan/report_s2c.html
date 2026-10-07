@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Sổ S2c-HKD{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <h2><i class="bi bi-journal-text"></i> Sổ S2c-HKD — Chi tiết doanh thu - chi phí</h2>
+    <div>
+        <button onclick="window.print()" class="btn btn-outline-dark">
+            <i class="bi bi-printer"></i> In
+        </button>
+        <a href="/accounting/reports" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Quay lại
+        </a>
+    </div>
+</div>
+
+<form method="get" class="row g-2 mb-3 no-print">
+    <div class="col-md-3">
+        <label class="form-label small">Từ ngày</label>
+        <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small">Đến ngày</label>
+        <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary"><i class="bi bi-search"></i> Xem</button>
+    </div>
+</form>
+
+<!-- Tổng kết -->
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body">
+                <small class="text-muted">Tổng doanh thu</small>
+                <h4 class="text-success">{{ "{:,.0f}".format(total_revenue) }} đ</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-danger">
+            <div class="card-body">
+                <small class="text-muted">Tổng chi phí</small>
+                <h4 class="text-danger">{{ "{:,.0f}".format(total_expense) }} đ</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <small class="text-muted">Lợi nhuận</small>
+                <h4 class="text-primary">{{ "{:,.0f}".format(total_profit) }} đ</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body">
+                <small class="text-muted">Số giao dịch</small>
+                <h4 class="text-info">{{ rows|length }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="print-area">
+    <div class="text-center mb-3">
+        <div class="fw-bold">{{ profile.business_name if profile else 'HỘ KINH DOANH' }}</div>
+        {% if profile and profile.tax_code %}<div>Mã số thuế: {{ profile.tax_code }}</div>{% endif %}
+    </div>
+
+    <div class="text-center mb-3">
+        <h4>SỔ CHI TIẾT DOANH THU - CHI PHÍ</h4>
+        <div><em>(Mẫu số S2c-HKD)</em></div>
+        <div class="mt-2">Từ ngày {{ date_from }} đến ngày {{ date_to }}</div>
+        <div class="small">Đơn vị tính: đồng</div>
+    </div>
+
+    <table class="table table-bordered table-sm">
+        <thead class="table-light text-center">
+            <tr>
+                <th>Ngày, tháng</th>
+                <th>Diễn giải</th>
+                <th>Khoản mục</th>
+                <th>Doanh thu</th>
+                <th>Chi phí</th>
+            </tr>
+            <tr class="text-center fst-italic small">
+                <td>(1)</td><td>(2)</td><td>(3)</td><td>(4)</td><td>(5)</td>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td class="text-center">{{ r.date.strftime("%d/%m/%Y") }}</td>
+                <td>{{ r.diary }}</td>
+                <td><small>{{ r.category }}</small></td>
+                <td class="text-end text-success">
+                    {% if r.revenue > 0 %}{{ "{:,.0f}".format(r.revenue) }}{% else %}—{% endif %}
+                </td>
+                <td class="text-end text-danger">
+                    {% if r.expense > 0 %}{{ "{:,.0f}".format(r.expense) }}{% else %}—{% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center text-muted py-3">Không có phát sinh trong kỳ</td></tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="table-warning fw-bold">
+                <td colspan="3" class="text-end">TỔNG CỘNG:</td>
+                <td class="text-end text-success">{{ "{:,.0f}".format(total_revenue) }}</td>
+                <td class="text-end text-danger">{{ "{:,.0f}".format(total_expense) }}</td>
+            </tr>
+            <tr class="table-info fw-bold">
+                <td colspan="3" class="text-end">LỢI NHUẬN:</td>
+                <td colspan="2" class="text-end">
+                    {{ "{:,.0f}".format(total_profit) }} đ
+                </td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="small mt-2">
+        <em>- Sổ này tổng hợp doanh thu từ bán hàng và chi phí từ phiếu chi để xác định thu nhập tính thuế TNCN.</em>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-6 text-center">
+            <strong>Người đại diện HKD</strong>
+            <div class="small">(Ký, họ tên, đóng dấu)</div>
+            <div style="height: 60px;"></div>
+        </div>
+        <div class="col-6 text-center">
+            <strong>Ngày ... tháng ... năm ...</strong>
+            <div class="small">Người lập sổ</div>
+            <div style="height: 60px;"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .no-print, nav, .navbar, .sidebar { display: none !important; }
+    body { font-size: 12px; }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+{% block title %}Tạo phiếu trả NCC{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-arrow-return-right"></i> Tạo phiếu trả NCC</h2>
+    <a href="/purchase/returns" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    <strong>Quy trình:</strong> Tạo phiếu (Nháp) → Duyệt → Gửi NCC kiểm hàng → Xác nhận trả thực tế (xuất kho + giảm công nợ).
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">Thông tin phiếu trả</div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Nhà cung cấp <span class="text-danger">*</span></label>
+                        <select id="supplierSelect" class="form-select" required>
+                            <option value="">-- Chọn NCC --</option>
+                            {% for s in suppliers %}
+                            <option value="{{ s.id }}">{{ s.code }} - {{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Hình thức hoàn</label>
+                        <select id="refundMethod" class="form-select">
+                            <option value="CREDIT">📝 Ghi giảm công nợ</option>
+                            <option value="CASH">💵 NCC hoàn tiền mặt</option>
+                            <option value="BANK">🏦 NCC chuyển khoản</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Lý do trả</label>
+                        <input type="text" id="returnReason" class="form-control"
+                               placeholder="VD: Hàng lỗi, giao sai, hết hạn...">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Ghi chú</label>
+                        <input type="text" id="returnNote" class="form-control">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header bg-secondary text-white">
+                <i class="bi bi-list-ul"></i> Chi tiết hàng trả
+                <span class="float-end small text-muted">(Chọn NCC trước để tải các lô nhập)</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-12 position-relative">
+                        <input type="text" id="productSearch" class="form-control"
+                               placeholder="🔍 Gõ tên, mã SKU để tìm SP cần trả...">
+                        <div id="searchResults" class="search-results"></div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 90px;">Mã hàng</th>
+                            <th>Sản phẩm</th>
+                            <th style="width: 180px;">Lô nhập</th>
+                            <th style="width: 85px;">SL trả</th>
+                            <th style="width: 110px;">Giá nhập</th>
+                            <th class="text-end" style="width: 110px;">Hoàn tiền</th>
+                            <th style="width: 40px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="returnLines"></tbody>
+                </table>
+                </div>
+                <div class="text-center mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="addEmptyLine()">
+                        <i class="bi bi-plus-circle"></i> Thêm dòng trống
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearAll()">
+                        <i class="bi bi-trash"></i> Xóa tất cả
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card sticky-top" style="top: 70px;">
+            <div class="card-header bg-danger text-white">
+                <i class="bi bi-calculator"></i> Tổng hoàn
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Số dòng:</span>
+                    <strong id="lineCount">0</strong>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="fs-5">TỔNG HOÀN:</span>
+                    <strong id="sumTotal" class="fs-4 text-danger">0 đ</strong>
+                </div>
+                <div class="d-grid">
+                    <button class="btn btn-warning btn-lg" onclick="submitReturn()">
+                        <i class="bi bi-save"></i> Lưu phiếu (Nháp)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.search-results { position: absolute; top: 100%; left: 0; right: 0; background: white;
+                  border: 1px solid #ddd; border-radius: 4px; max-height: 300px;
+                  overflow-y: auto; z-index: 100; display: none;
+                  box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+.search-results.show { display: block; }
+.search-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; }
+.search-item:hover { background: #e9ecef; }
+.layer-select { font-size: 0.8rem; }
+.empty-line-results-panel {
+    background: white;
+    border: 2px solid #0d6efd;
+    border-radius: 6px;
+    overflow-y: auto;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+}
+.empty-line-results-panel::before {
+    content: "Mã SP | Tên sản phẩm | Mã vạch | Tồn | Giá nhập";
+    display: block;
+    padding: 6px 12px;
+    background: #0d6efd;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+.empty-line-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9rem;
+}
+.empty-line-item:hover { background: #e7f0ff; }
+.empty-line-item:last-child { border-bottom: none; }
+</style>
+
+<script>
+let lines = [];
+let currentLayers = {};  // cache: product_id → [layers]
+
+function formatMoney(n) {
+    return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' đ';
+}
+
+const productSearch = document.getElementById('productSearch');
+const searchResults = document.getElementById('searchResults');
+const supplierSelect = document.getElementById('supplierSelect');
+
+// ============ SEARCH SP ============
+productSearch.addEventListener('input', async () => {
+    const q = productSearch.value.trim();
+    if (q.length < 2) { searchResults.classList.remove('show'); return; }
+    const sid = supplierSelect.value;
+    if (!sid) { alert('Vui lòng chọn nhà cung cấp trước!'); return; }
+    try {
+        const res = await fetch('/purchase/api/search-product?q=' + encodeURIComponent(q)
+                              + '&supplier_id=' + sid);
+        const data = await res.json();
+        if (data.products.length === 0) {
+            searchResults.innerHTML = '<div class="search-item text-muted">Không tìm thấy SP</div>';
+            searchResults.classList.add('show');
+            return;
+        }
+        searchResults.innerHTML = data.products.map(p => `
+            <div class="search-item" onclick='addProduct(${JSON.stringify(p).replace(/'/g, "&#39;")})'>
+                <strong>${p.sku}</strong> - ${p.name}
+                <span class="text-primary ms-2">Nhập cuối: ${formatMoney(p.cost_price)}</span>
+            </div>
+        `).join('');
+        searchResults.classList.add('show');
+    } catch(e) { console.error(e); }
+});
+
+async function addProduct(p) {
+    const sid = supplierSelect.value;
+    if (!sid) { alert('Vui lòng chọn NCC!'); return; }
+
+    // Load layers của SP từ NCC này
+    if (!currentLayers[p.id]) {
+        try {
+            const res = await fetch(`/purchase/api/supplier/${sid}/stock-layers/${p.id}`);
+            const data = await res.json();
+            currentLayers[p.id] = data.layers;
+        } catch(e) {
+            currentLayers[p.id] = [];
+        }
+    }
+
+    const layers = currentLayers[p.id];
+    if (layers.length === 0) {
+        alert('SP này chưa có lô nhập nào còn hàng từ NCC ' + sid);
+        return;
+    }
+
+    // Tự chọn lô đầu tiên (mới nhất)
+    const firstLayer = layers[0];
+    lines.push({
+        product_id: p.id,
+        sku: p.sku,
+        name: p.name,
+        unit: p.unit,
+        stock_layer_id: firstLayer.id,
+        quantity: 1,
+        unit_price: firstLayer.unit_cost,
+        available_layers: layers,
+        max_qty: firstLayer.remaining_qty,
+    });
+
+    productSearch.value = '';
+    searchResults.classList.remove('show');
+    renderLines();
+    productSearch.focus();
+}
+
+function addEmptyLine() {
+    lines.push({
+        product_id: 0,
+        sku: '',
+        name: '',
+        unit: '',
+        stock_layer_id: null,
+        quantity: 1,
+        unit_price: 0,
+        available_layers: [],
+        is_empty: true,
+    });
+    renderLines();
+}
+
+function clearAll() {
+    if (lines.length === 0) return;
+    if (!confirm('Xóa toàn bộ dòng hàng?')) return;
+    lines = [];
+    renderLines();
+}
+
+function renderLines() {
+    const tbody = document.getElementById('returnLines');
+    if (lines.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">Chưa có SP. Gõ ô trên để tìm SP cần trả.</td></tr>';
+        recalc();
+        return;
+    }
+    tbody.innerHTML = lines.map((l, idx) => {
+        const refund = l.quantity * l.unit_price;
+                const skuCell = l.is_empty
+            ? `<input type="text" class="form-control form-control-sm empty-line-input"
+                     data-idx="${idx}"
+                     placeholder="Mã SP..."
+                     value="${l.sku || ''}"
+                     autocomplete="off"
+                     oninput="searchEmptyLine(${idx}, this.value, this)"
+                     onfocus="searchEmptyLine(${idx}, this.value, this)">`
+            : `<strong>${l.sku}</strong>`;
+        const nameCell = l.is_empty
+            ? '<small class="text-muted">hoặc bấm "Thêm dòng trống"</small>'
+            : `${l.name} <small class="text-muted">(${l.unit})</small>`;
+        const layerCell = l.available_layers && l.available_layers.length > 0
+            ? `<select class="form-select form-select-sm layer-select"
+                       onchange="changeLayer(${idx}, this.value)">
+                   ${l.available_layers.map(layer => `
+                       <option value="${layer.id}"
+                               data-cost="${layer.unit_cost}"
+                               data-qty="${layer.remaining_qty}"
+                               ${layer.id === l.stock_layer_id ? 'selected' : ''}>
+                           ${layer.created_at} — còn ${layer.remaining_qty} — ${formatMoney(layer.unit_cost)}
+                       </option>
+                   `).join('')}
+               </select>`
+            : (l.is_empty ? '' : '<small class="text-muted">—</small>');
+
+                return `<tr>
+            <td>${skuCell}</td>
+            <td>${nameCell}</td>
+            <td>${layerCell}</td>
+            <td><input type="number" min="1" value="${l.quantity}"
+                       class="form-control form-control-sm"
+                       onchange="updateLine(${idx}, 'quantity', this.value)"></td>
+            <td><input type="number" step="100" value="${l.unit_price}"
+                       class="form-control form-control-sm"
+                       onchange="updateLine(${idx}, 'unit_price', this.value)"></td>
+            <td class="text-end fw-bold text-danger">${formatMoney(refund)}</td>
+            <td><button type="button" class="btn btn-sm btn-outline-danger"
+                        onclick="removeLine(${idx}); return false;">
+                <i class="bi bi-x"></i></button></td>
+        </tr>`;
+    }).join('');
+    recalc();
+}
+
+function changeLayer(idx, layerId) {
+    const layer = lines[idx].available_layers.find(l => l.id === parseInt(layerId));
+    if (layer) {
+        lines[idx].stock_layer_id = layer.id;
+        lines[idx].unit_price = layer.unit_cost;
+        lines[idx].max_qty = layer.remaining_qty;
+        renderLines();
+    }
+}
+
+// ============ DROPDOWN SEARCH CHO DÒNG TRỐNG ============
+let emptyLineTimers = {};
+let activeResultsPanel = null;
+
+async function searchEmptyLine(idx, query, inputEl) {
+    if (emptyLineTimers[idx]) clearTimeout(emptyLineTimers[idx]);
+    emptyLineTimers[idx] = setTimeout(() => {
+        performEmptyLineSearch(idx, query, inputEl);
+    }, 150);
+}
+
+async function performEmptyLineSearch(idx, query, inputEl) {
+    query = (query || '').trim();
+    if (query.length < 2) { hideEmptyLineResults(); return; }
+
+    const sid = supplierSelect.value;
+    if (!sid) {
+        showEmptyLineResults(idx, [], inputEl, 'Chưa chọn NCC');
+        return;
+    }
+
+    try {
+        const res = await fetch('/purchase/api/search-product?q=' + encodeURIComponent(query)
+                              + '&supplier_id=' + sid);
+        const data = await res.json();
+        showEmptyLineResults(idx, data.products, inputEl);
+    } catch(e) {
+        console.error(e);
+        hideEmptyLineResults();
+    }
+}
+
+function showEmptyLineResults(idx, products, inputEl, errorMsg) {
+    hideEmptyLineResults();
+
+    const rect = inputEl.getBoundingClientRect();
+    const panel = document.createElement('div');
+    panel.className = 'empty-line-results-panel';
+    panel.style.position = 'fixed';
+    panel.style.top = (rect.bottom + 2) + 'px';
+    panel.style.left = rect.left + 'px';
+    panel.style.width = Math.max(rect.width, 600) + 'px';
+    panel.style.maxHeight = '400px';
+    panel.style.zIndex = '9999';
+
+    if (errorMsg) {
+        panel.innerHTML = '<div class="empty-line-item text-danger text-center">' + errorMsg + '</div>';
+    } else if (products.length === 0) {
+        panel.innerHTML = '<div class="empty-line-item text-muted text-center">Không tìm thấy SP nào</div>';
+    } else {
+        panel.innerHTML = products.slice(0, 20).map(p => `
+            <div class="empty-line-item"
+                 onclick='selectForEmptyLine(${idx}, ${p.id}, ${JSON.stringify(p.sku)}, ${JSON.stringify(p.name)}, ${JSON.stringify(p.unit)}, ${p.cost_price}, ${p.tax_rate}, ${p.stock}, ${JSON.stringify(p.barcode || "")})'>
+                <div class="row g-0 align-items-center">
+                    <div class="col-md-3"><strong class="text-primary">${p.sku}</strong></div>
+                    <div class="col-md-4">${p.name}</div>
+                    <div class="col-md-2 text-center"><small class="text-muted">${p.barcode || '—'}</small></div>
+                    <div class="col-md-1 text-center"><span class="badge bg-secondary">${p.stock}</span></div>
+                    <div class="col-md-2 text-end"><span class="text-danger fw-bold">${formatMoney(p.cost_price)}</span></div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    document.body.appendChild(panel);
+    activeResultsPanel = panel;
+}
+
+function hideEmptyLineResults() {
+    if (activeResultsPanel) {
+        activeResultsPanel.remove();
+        activeResultsPanel = null;
+    }
+}
+
+async function selectForEmptyLine(idx, productId, sku, name, unit, costPrice, taxRate, stock, barcode) {
+    hideEmptyLineResults();
+    const sid = supplierSelect.value;
+    try {
+        const res = await fetch(`/purchase/api/supplier/${sid}/stock-layers/${productId}`);
+        const data = await res.json();
+        if (data.layers.length === 0) {
+            alert('SP này chưa có lô nhập nào còn hàng từ NCC này.');
+            return;
+        }
+        const firstLayer = data.layers[0];
+        lines[idx] = {
+            product_id: productId,
+            sku: sku,
+            name: name,
+            unit: unit,
+            stock_layer_id: firstLayer.id,
+            quantity: 1,
+            unit_price: firstLayer.unit_cost,
+            available_layers: data.layers,
+            max_qty: firstLayer.remaining_qty,
+        };
+        renderLines();
+    } catch(e) { console.error(e); }
+}
+
+// Click ra ngoài → ẩn panel
+document.addEventListener('mousedown', (e) => {
+    if (activeResultsPanel && !activeResultsPanel.contains(e.target)
+        && !e.target.classList.contains('empty-line-input')) {
+        hideEmptyLineResults();
+    }
+});
+
+// Scroll → ẩn panel
+window.addEventListener('scroll', hideEmptyLineResults, true);
+
+function updateLine(idx, field, val) {
+    lines[idx][field] = parseFloat(val) || 0;
+    renderLines();
+}
+
+function removeLine(idx) {
+    lines.splice(idx, 1);
+    renderLines();
+}
+
+function recalc() {
+    let total = 0;
+    lines.forEach(l => total += l.quantity * l.unit_price);
+    document.getElementById('lineCount').textContent = lines.length;
+    document.getElementById('sumTotal').textContent = formatMoney(total);
+}
+
+async function submitReturn() {
+    if (lines.length === 0) { alert('Chưa có SP nào!'); return; }
+    const sid = supplierSelect.value;
+    if (!sid) { alert('Chọn NCC!'); return; }
+
+    const emptyRows = lines.filter(l => !l.product_id || l.product_id === 0);
+    if (emptyRows.length > 0) {
+        alert('Có dòng chưa chọn SP, vui lòng xóa dòng đó.');
+        return;
+    }
+
+    const payload = {
+        supplier_id: parseInt(sid),
+        refund_method: document.getElementById('refundMethod').value,
+        reason: document.getElementById('returnReason').value,
+        note: document.getElementById('returnNote').value,
+        lines: lines.map(l => ({
+            product_id: l.product_id,
+            stock_layer_id: l.stock_layer_id,
+            quantity: l.quantity,
+            unit_price: l.unit_price,
+            reason: '',
+        })),
+    };
+
+    try {
+        const res = await fetch('/purchase/returns/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (data.success) {
+            window.location.href = data.redirect_url;
+        } else {
+            alert('Lỗi: ' + data.message);
+        }
+    } catch(e) {
+        alert('Lỗi kết nối: ' + e);
+    }
+}
+
+renderLines();
+productSearch.focus();
+</script>
+{% endblock %}

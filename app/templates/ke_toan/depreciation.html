@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Chạy khấu hao{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-calculator"></i> Chạy khấu hao tài sản</h2>
+    <a href="/accounting/assets" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    <i class="bi bi-exclamation-triangle-fill"></i> {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    <i class="bi bi-check-circle-fill"></i> {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle-fill"></i>
+    <strong>Nguyên tắc:</strong>
+    <ul class="mb-0 mt-2">
+        <li>Chỉ chạy khấu hao cho tài sản <strong>đang dùng</strong> và <strong>có tỷ lệ %/năm > 0</strong>.</li>
+        <li>Khấu hao 1 tháng = Nguyên giá × Tỷ lệ %/năm ÷ 12.</li>
+        <li>Không khấu hao vượt quá nguyên giá.</li>
+        <li>Nếu đã chạy cho kỳ đó rồi, hệ thống tự bỏ qua (không tính trùng).</li>
+        <li>Không thể chạy cho kỳ đã <a href="/accounting/periods">khóa</a>.</li>
+    </ul>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <i class="bi bi-play-circle"></i> Chạy khấu hao tháng
+            </div>
+            <div class="card-body">
+                <form method="post" action="/accounting/depreciation/run"
+                      onsubmit="return confirm('Chạy khấu hao cho kỳ đã chọn?')">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Chọn kỳ</label>
+                        <select name="period" class="form-select form-select-lg" required>
+                            {% for m in months %}
+                            <option value="{{ m }}">{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Chọn tháng bạn muốn chạy khấu hao</small>
+                    </div>
+                    <button type="submit" class="btn btn-warning btn-lg w-100">
+                        <i class="bi bi-calculator"></i> CHẠY KHẤU HAO
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h5 class="text-primary"><i class="bi bi-lightbulb"></i> Ví dụ</h5>
+                <p class="mb-2">Máy tính có:</p>
+                <ul class="small">
+                    <li>Nguyên giá: <strong>20,000,000đ</strong></li>
+                    <li>Tỷ lệ khấu hao: <strong>25%/năm</strong> (4 năm)</li>
+                </ul>
+                <p class="mb-1">→ Khấu hao 1 tháng:</p>
+                <p class="fs-5 mb-2"><strong>20,000,000 × 25% ÷ 12 = 416,667đ/tháng</strong></p>
+                <p class="small text-muted mb-0">Sau 48 tháng, tài sản khấu hao hết → dừng lại.</p>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header bg-secondary text-white">Xem lịch sử khấu hao</div>
+            <div class="card-body">
+                <p class="small mb-2">Để xem lịch sử khấu hao của 1 tài sản:</p>
+                <a href="/accounting/assets" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-arrow-right"></i> Vào danh sách tài sản → chọn tài sản
+                </a>
+            </div>
+        </div>
+
+        <div class="card mt-3 border-danger">
+            <div class="card-header bg-danger text-white">
+                <i class="bi bi-exclamation-triangle"></i> Reset khấu hao kỳ
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">
+                    Nếu bạn đã chạy khấu hao nhưng muốn <strong>chạy lại</strong>
+                    (ví dụ: sau khi sửa %KH của tài sản), hãy xóa khấu hao kỳ đó trước.
+                </p>
+                <form method="post" action="/accounting/depreciation/reset"
+                      onsubmit="return confirm('⚠️ Xóa TOÀN BỘ khấu hao của kỳ đã chọn?\n\nTất cả tài sản trong kỳ sẽ được reset. Sau đó có thể chạy lại.')">
+                    <div class="input-group input-group-sm">
+                        <select name="period" class="form-select" required>
+                            {% for m in months %}
+                            <option value="{{ m }}">{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Xóa khấu hao kỳ
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

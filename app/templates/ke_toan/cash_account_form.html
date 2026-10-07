@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}{{ "Sửa" if is_edit else "Thêm" }} tài khoản quỹ{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-wallet2"></i> {{ "Sửa" if is_edit else "Thêm" }} tài khoản quỹ</h2>
+    <a href="/accounting/cash-accounts" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post"
+              action="{{ '/accounting/cash-accounts/' + account.id|string + '/update' if is_edit else '/accounting/cash-accounts/create' }}">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Mã tài khoản <span class="text-danger">*</span></label>
+                    <input type="text" name="code" class="form-control" required
+                           placeholder="VD: TM001, NH001"
+                           value="{{ account.code if account else '' }}">
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">Tên tài khoản <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" required
+                           placeholder="VD: Quỹ tiền mặt, VCB - 1234"
+                           value="{{ account.name if account else '' }}">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Loại tài khoản <span class="text-danger">*</span></label>
+                    <select name="account_type" class="form-select" id="accountType" required>
+                        <option value="CASH"
+                                {% if not account or account.account_type == "CASH" %}selected{% endif %}>
+                            💵 Tiền mặt
+                        </option>
+                        <option value="BANK"
+                                {% if account and account.account_type == "BANK" %}selected{% endif %}>
+                            🏦 Ngân hàng
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-md-4" id="statusField" {% if not is_edit %}style="display:none"{% endif %}>
+                    <label class="form-label">Trạng thái</label>
+                    <select name="status" class="form-select">
+                        <option value="ACTIVE"
+                                {% if not account or account.status == "ACTIVE" %}selected{% endif %}>
+                            Hoạt động
+                        </option>
+                        <option value="INACTIVE"
+                                {% if account and account.status == "INACTIVE" %}selected{% endif %}>
+                            Ngừng hoạt động
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label">Số dư đầu kỳ (VNĐ)</label>
+                    <input type="number" name="opening_balance" class="form-control" step="1000"
+                           {% if is_edit %}readonly{% endif %}
+                           value="{{ account.opening_balance if account else 0 }}">
+                    {% if is_edit %}
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle"></i> Số dư đầu kỳ không thể sửa sau khi tạo.
+                        Số dư hiện tại: <strong>{{ "{:,.0f}".format(account.current_balance) }} đ</strong>
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Thông tin ngân hàng (chỉ hiện khi chọn BANK) -->
+            <div id="bankFields" style="display:none" class="mt-3">
+                <hr>
+                <h5 class="text-primary">Thông tin ngân hàng</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Tên ngân hàng</label>
+                        <input type="text" name="bank_name" class="form-control"
+                               placeholder="VD: Vietcombank"
+                               value="{{ account.bank_name if account else '' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Số tài khoản</label>
+                        <input type="text" name="bank_account_no" class="form-control"
+                               value="{{ account.bank_account_no if account else '' }}">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Chi nhánh</label>
+                        <input type="text" name="bank_branch" class="form-control"
+                               value="{{ account.bank_branch if account else '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <label class="form-label">Ghi chú</label>
+                <input type="text" name="note" class="form-control"
+                       value="{{ account.note if account else '' }}">
+            </div>
+
+            <hr class="my-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save"></i> {{ "Cập nhật" if is_edit else "Thêm mới" }}
+            </button>
+            <a href="/accounting/cash-accounts" class="btn btn-secondary">Hủy</a>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleBankFields() {
+    const type = document.getElementById('accountType').value;
+    document.getElementById('bankFields').style.display = type === 'BANK' ? 'block' : 'none';
+}
+document.getElementById('accountType').addEventListener('change', toggleBankFields);
+toggleBankFields();
+</script>
+{% endblock %}

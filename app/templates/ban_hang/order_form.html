@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}Tạo đơn hàng{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-receipt"></i> Tạo đơn hàng (bán buôn)</h2>
+    <a href="/sales/orders" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Khách hàng</label>
+                        <select id="orderCustomer" class="form-select">
+                            <option value="">-- Chọn khách hàng --</option>
+                            {% for c in customers %}
+                            <option value="{{ c.id }}">{{ c.code }} - {{ c.name }}{% if c.phone %} ({{ c.phone }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Ghi chú</label>
+                        <input type="text" id="orderNote" class="form-control" placeholder="Ghi chú đơn hàng">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-list-ul"></i> Chi tiết đơn hàng
+            </div>
+            <div class="card-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-10 position-relative">
+                        <input type="text" id="productSearch" class="form-control"
+                               placeholder="Gõ tên hoặc mã SKU sản phẩm để thêm vào đơn...">
+                        <div id="searchResults" class="search-results"></div>
+                    </div>
+                </div>
+
+                <table class="table table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Sản phẩm</th>
+                            <th style="width: 100px;">SL</th>
+                            <th style="width: 120px;">Đơn giá</th>
+                            <th style="width: 80px;">VAT %</th>
+                            <th class="text-end" style="width: 120px;">Thành tiền</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="orderLines">
+                        <tr><td colspan="6" class="text-center text-muted py-3">
+                            Chưa có sản phẩm. Gõ ô trên để tìm.
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-3 sticky-top" style="top: 70px;">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-calculator"></i> Tổng kết
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Tạm tính:</span>
+                    <strong id="sumSubtotal">0 đ</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>VAT:</span>
+                    <strong id="sumTax">0 đ</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Giảm giá:</span>
+                    <input type="number" id="orderDiscount" class="form-control form-control-sm"
+                           style="width: 120px; text-align: right;" value="0" step="1000" oninput="recalc()">
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="fs-5">TỔNG:</span>
+                    <strong id="sumTotal" class="fs-4 text-danger">0 đ</strong>
+                </div>
+                <button class="btn btn-success w-100" onclick="submitOrder()">
+                    <i class="bi bi-check-circle"></i> Tạo đơn & Xuất kho
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.search-results { position: absolute; top: 100%; left: 0; right: 0; background: white;
+                  border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto;
+                  z-index: 100; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+.search-results.show { display: block; }
+.search-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; }
+.search-item:hover { background: #e9ecef; }
+</style>
+
+<script>
+let allProducts = {{ products | tojson }};
+let lines = [];
+
+function formatMoney(n) {
+    return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' đ';
+}
+
+const productSearch = document.getElementById('productSearch');
+const searchResults = document.getElementById('searchResults');
+
+productSearch.addEventListener('input', async () => {
+    const q = productSearch.value.trim();
+    if (q.length < 2) { searchResults.classList.remove('show'); return; }
+    try {
+        const res = await fetch('/sales/api/search-product?q=' + encodeURIComponent(q));
+        const data = await res.json();
+        if (data.products.length === 0) { searchResults.classList.remove('show'); return; }
+        searchResults.innerHTML = data.products.map(p => `
+            <div class="search-item" onclick="addLine(${p.id})">
+                <strong>${p.sku}</strong> - ${p.name}
+                <span class="text-danger ms-2">${formatMoney(p.price)}</span>
+            </div>
+        `).join('');
+        searchResults.classList.add('show');
+    } catch(e) { console.error(e); }
+});
+
+function addLine(pid) {
+    const p = allProducts.find(x => x.id === pid);
+    if (!p) return;
+    const existing = lines.find(l => l.product_id === pid);
+    if (existing) {
+        existing.quantity += 1;
+    } else {
+        lines.push({
+            product_id: pid, sku: p.sku, name: p.name,
+            unit: p.unit, quantity: 1,
+            unit_price: p.price, tax_rate: p.tax_rate || 0,
+        });
+    }
+    productSearch.value = '';
+    searchResults.classList.remove('show');
+    renderLines();
+    productSearch.focus();
+}
+
+function renderLines() {
+    const tbody = document.getElementById('orderLines');
+    if (lines.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Chưa có sản phẩm. Gõ ô trên để tìm.</td></tr>';
+        recalc();
+        return;
+    }
+    tbody.innerHTML = lines.map((l, idx) => {
+        const subtotal = l.quantity * l.unit_price;
+        const tax = subtotal * l.tax_rate / 100;
+        return `<tr>
+            <td><strong>${l.sku}</strong><br><small>${l.name}</small></td>
+            <td><input type="number" min="1" value="${l.quantity}" class="form-control form-control-sm"
+                       onchange="updateLine(${idx}, 'quantity', this.value)"></td>
+            <td><input type="number" step="100" value="${l.unit_price}" class="form-control form-control-sm"
+                       onchange="updateLine(${idx}, 'unit_price', this.value)"></td>
+            <td><input type="number" step="0.1" value="${l.tax_rate}" class="form-control form-control-sm"
+                       onchange="updateLine(${idx}, 'tax_rate', this.value)"></td>
+            <td class="text-end fw-bold">${formatMoney(subtotal + tax)}</td>
+            <td><button class="btn btn-sm btn-outline-danger" onclick="removeLine(${idx})">
+                <i class="bi bi-x"></i></button></td>
+        </tr>`;
+    }).join('');
+    recalc();
+}
+
+function updateLine(idx, field, val) {
+    lines[idx][field] = parseFloat(val) || 0;
+    renderLines();
+}
+
+function removeLine(idx) {
+    lines.splice(idx, 1);
+    renderLines();
+}
+
+function recalc() {
+    let subtotal = 0, tax = 0;
+    lines.forEach(l => {
+        const s = l.quantity * l.unit_price;
+        subtotal += s;
+        tax += s * l.tax_rate / 100;
+    });
+    const discount = parseFloat(document.getElementById('orderDiscount').value) || 0;
+    const total = Math.max(0, subtotal + tax - discount);
+    document.getElementById('sumSubtotal').textContent = formatMoney(subtotal);
+    document.getElementById('sumTax').textContent = formatMoney(tax);
+    document.getElementById('sumTotal').textContent = formatMoney(total);
+    document.getElementById('sumTotal').dataset.value = total;
+}
+
+async function submitOrder() {
+    if (lines.length === 0) { alert('Chưa có sản phẩm nào!'); return; }
+    const customerId = document.getElementById('orderCustomer').value;
+    if (!customerId) { alert('Vui lòng chọn khách hàng!'); return; }
+
+    const total = parseFloat(document.getElementById('sumTotal').dataset.value) || 0;
+
+    if (!confirm(`Xác nhận tạo đơn hàng?\nTổng tiền: ${formatMoney(total)}\n\nHàng sẽ được xuất kho tự động.`)) {
+        return;
+    }
+
+    const payload = {
+        customer_id: parseInt(customerId),
+        order_type: "INVOICE",
+        payment_method: "DEBT",
+        discount_amount: parseFloat(document.getElementById('orderDiscount').value) || 0,
+        note: document.getElementById('orderNote').value,
+        paid_amount: 0,
+        lines: lines.map(l => ({
+            product_id: l.product_id,
+            quantity: l.quantity,
+            unit_price: l.unit_price,
+            tax_rate: l.tax_rate,
+        })),
+    };
+
+    try {
+        const res = await fetch('/sales/pos/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (data.success) {
+            window.location.href = '/sales/orders/' + data.order_id;
+        } else {
+            alert('Lỗi: ' + data.message);
+        }
+    } catch(e) {
+        alert('Lỗi: ' + e);
+    }
+}
+
+productSearch.focus();
+</script>
+{% endblock %}

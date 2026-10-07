@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}Báo cáo thuế{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <h2><i class="bi bi-percent"></i> Tổng hợp thuế phải nộp</h2>
+    <div>
+        <button onclick="window.print()" class="btn btn-outline-dark">
+            <i class="bi bi-printer"></i> In
+        </button>
+        <a href="/accounting/reports" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Quay lại
+        </a>
+    </div>
+</div>
+
+<form method="get" class="row g-2 mb-3 no-print">
+    <div class="col-md-3">
+        <label class="form-label small">Từ ngày</label>
+        <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small">Đến ngày</label>
+        <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary me-2"><i class="bi bi-search"></i> Xem</button>
+        <a href="/accounting/reports/tax" class="btn btn-outline-secondary">Hôm nay</a>
+    </div>
+</form>
+
+{% if not profile %}
+<div class="alert alert-warning no-print">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <strong>Chưa cấu hình HKD!</strong> Vào
+    <a href="/accounting/settings" class="alert-link">Cấu hình HKD</a>
+    để thiết lập nhóm thuế và tỷ lệ %.
+</div>
+{% endif %}
+
+<!-- Thẻ tổng kết -->
+<div class="row g-3 mb-4 no-print">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <small class="text-muted">Doanh thu kỳ</small>
+                <h3 class="text-primary">{{ "{:,.0f}".format(summary.revenue) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body">
+                <small class="text-muted">Thuế GTGT</small>
+                <h3 class="text-info">{{ "{:,.0f}".format(summary.vat) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body">
+                <small class="text-muted">Thuế TNCN</small>
+                <h3 class="text-warning">{{ "{:,.0f}".format(summary.tncn) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-danger">
+            <div class="card-body">
+                <small class="text-muted">TỔNG THUẾ PHẢI NỘP</small>
+                <h3 class="text-danger">{{ "{:,.0f}".format(summary.total) }} đ</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="print-area">
+    <div class="text-center mb-3">
+        <div class="fw-bold">{{ profile.business_name if profile else 'HỘ KINH DOANH' }}</div>
+        {% if profile and profile.tax_code %}<div>Mã số thuế: {{ profile.tax_code }}</div>{% endif %}
+        {% if profile and profile.address %}<div>Địa chỉ: {{ profile.address }}</div>{% endif %}
+    </div>
+
+    <div class="text-center mb-3">
+        <h4>BẢNG TỔNG HỢP THUẾ PHẢI NỘP</h4>
+        <div class="mt-2">Từ ngày {{ date_from }} đến ngày {{ date_to }}</div>
+        <div class="small">Đơn vị tính: đồng</div>
+    </div>
+
+    <!-- Thông tin nhóm HKD -->
+    <div class="mb-3">
+        <strong>Nhóm HKD:</strong>
+        {% if summary.hkd_group == 1 %}
+        <span class="badge bg-success">Nhóm 1 — Doanh thu &lt; 500 triệu/năm</span>
+        {% elif summary.hkd_group == 2 %}
+        <span class="badge bg-primary">Nhóm 2 — GTGT+TNCN theo % doanh thu</span>
+        {% elif summary.hkd_group == 3 %}
+        <span class="badge bg-warning text-dark">Nhóm 3 — GTGT % + TNCN trên thu nhập</span>
+        {% elif summary.hkd_group == 4 %}
+        <span class="badge bg-danger">Nhóm 4 — Có thuế khác</span>
+        {% endif %}
+    </div>
+
+    <table class="table table-bordered">
+        <thead class="table-light text-center">
+            <tr>
+                <th style="width: 50px;">STT</th>
+                <th>Chỉ tiêu</th>
+                <th style="width: 150px;">Số tiền</th>
+                <th>Ghi chú</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="text-center">1</td>
+                <td><strong>Tổng doanh thu tính thuế</strong></td>
+                <td class="text-end fw-bold">{{ "{:,.0f}".format(summary.revenue) }}</td>
+                <td><small>Tổng doanh thu từ S1a/S2a</small></td>
+            </tr>
+            <tr>
+                <td class="text-center">2</td>
+                <td>
+                    <strong>Thuế GTGT phải nộp</strong>
+                    {% if profile and summary.hkd_group in [2, 3] %}
+                    <br><small class="text-muted">
+                        (= Doanh thu × {{ profile.vat_rate_retail }}%)
+                    </small>
+                    {% endif %}
+                </td>
+                <td class="text-end fw-bold text-info">{{ "{:,.0f}".format(summary.vat) }}</td>
+                <td>
+                    <small>
+                        {% if summary.hkd_group == 1 %}
+                        <em>Nhóm 1 không chịu thuế GTGT</em>
+                        {% elif summary.hkd_group in [2, 3] %}
+                        Tỷ lệ {{ profile.vat_rate_retail if profile else 1 }}%
+                        {% endif %}
+                    </small>
+                </td>
+            </tr>
+            <tr>
+                <td class="text-center">3</td>
+                <td>
+                    <strong>Thuế TNCN phải nộp</strong>
+                    {% if profile and summary.hkd_group in [2, 3] %}
+                    <br><small class="text-muted">
+                        {% if summary.hkd_group == 2 %}
+                        (= Doanh thu × {{ profile.tncn_rate }}%)
+                        {% else %}
+                        (= (Doanh thu - Chi phí) × {{ profile.tncn_rate }}%)
+                        {% endif %}
+                    </small>
+                    {% endif %}
+                </td>
+                <td class="text-end fw-bold text-warning">{{ "{:,.0f}".format(summary.tncn) }}</td>
+                <td>
+                    <small>
+                        {% if summary.hkd_group == 1 %}
+                        <em>Nhóm 1 không nộp thuế TNCN</em>
+                        {% elif summary.hkd_group in [2, 3] %}
+                        Tỷ lệ {{ profile.tncn_rate if profile else 0.5 }}%
+                        {% endif %}
+                    </small>
+                </td>
+            </tr>
+            <tr class="table-danger">
+                <td class="text-center"></td>
+                <td><strong>TỔNG CỘNG THUẾ PHẢI NỘP</strong></td>
+                <td class="text-end fw-bold fs-5">{{ "{:,.0f}".format(summary.total) }}</td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Ghi chú theo nhóm -->
+    <div class="small mt-3">
+        {% if summary.hkd_group == 1 %}
+        <p><strong>📌 Nhóm 1:</strong> HKD có doanh thu dưới 500 triệu đồng/năm thuộc diện không phải nộp thuế GTGT và thuế TNCN.
+        Chỉ cần ghi sổ S1a-HKD để theo dõi doanh thu.</p>
+        {% elif summary.hkd_group == 2 %}
+        <p><strong>📌 Nhóm 2:</strong> HKD có doanh thu từ 500 triệu đồng/năm trở lên nộp thuế GTGT và TNCN
+        theo tỷ lệ % trên doanh thu. Sử dụng sổ S2a-HKD.</p>
+        {% elif summary.hkd_group == 3 %}
+        <p><strong>📌 Nhóm 3:</strong> HKD nộp thuế GTGT theo tỷ lệ % trên doanh thu và thuế TNCN trên thu nhập tính thuế.
+        Sử dụng các sổ S2b, S2c, S2d, S2e-HKD.</p>
+        {% elif summary.hkd_group == 4 %}
+        <p><strong>📌 Nhóm 4:</strong> HKD có hoạt động kinh doanh chịu các loại thuế khác (xuất khẩu, nhập khẩu,
+        tiêu thụ đặc biệt, tài nguyên, bảo vệ môi trường...). Sử dụng thêm sổ S3a-HKD.</p>
+        {% endif %}
+        <p class="mb-0"><em>- Bảng này chỉ mang tính chất tham khảo nội bộ. Số liệu chính thức căn cứ vào sổ sách kế toán
+        và quy định của cơ quan thuế tại thời điểm kê khai.</em></p>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-6 text-center">
+            <strong>Người đại diện HKD</strong>
+            <div class="small">(Ký, họ tên, đóng dấu)</div>
+            <div style="height: 60px;"></div>
+        </div>
+        <div class="col-6 text-center">
+            <strong>Ngày ... tháng ... năm ...</strong>
+            <div class="small">Người lập bảng</div>
+            <div style="height: 60px;"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    nav, .navbar, .sidebar, aside, header, footer,
+    .no-print, .btn, .btn-close, .alert {
+        display: none !important;
+    }
+    body { font-size: 12px; margin: 0 !important; padding: 0 !important; background: white !important; }
+    .container-fluid, .row { margin: 0 !important; padding: 0 !important; }
+    [class*="col-"] {
+        width: 100% !important; max-width: 100% !important;
+        flex: 0 0 100% !important; padding: 0 !important;
+    }
+    .print-area { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+    table { page-break-inside: auto; width: 100% !important; }
+    tr { page-break-inside: avoid; }
+    .text-info { color: #0dcaf0 !important; }
+    .text-warning { color: #ffc107 !important; }
+    .text-danger { color: #dc3545 !important; }
+    .text-primary { color: #0d6efd !important; }
+    .table-light, .table-info, .table-warning, .table-danger, .table-success {
+        background-color: transparent !important;
+    }
+}
+</style>
+{% endblock %}

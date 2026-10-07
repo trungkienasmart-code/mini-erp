@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}{{ "Sửa" if is_edit else "Thêm" }} tài sản{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-building"></i> {{ "Sửa" if is_edit else "Thêm" }} tài sản cố định</h2>
+    <a href="/accounting/assets" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post"
+              action="{{ '/accounting/assets/' + asset.id|string + '/update' if is_edit else '/accounting/assets/create' }}">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Mã tài sản</label>
+                    <input type="text" name="code" class="form-control"
+                           placeholder="Để trống tự sinh"
+                           value="{{ asset.code if asset else '' }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Tên tài sản <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" required
+                           placeholder="VD: Máy tính Dell, Xe tải..."
+                           value="{{ asset.name if asset else '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Loại</label>
+                    <select name="asset_type" class="form-select">
+                        <option value="TSCD"
+                                {% if not asset or asset.asset_type == "TSCD" %}selected{% endif %}>
+                            Tài sản cố định
+                        </option>
+                        <option value="CCDC"
+                                {% if asset and asset.asset_type == "CCDC" %}selected{% endif %}>
+                            Công cụ dụng cụ
+                        </option>
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Đơn vị tính</label>
+                    <input type="text" name="unit" class="form-control"
+                           value="{{ asset.unit if asset else 'Cái' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Số lượng</label>
+                    <input type="number" name="quantity" class="form-control" min="1"
+                           value="{{ asset.quantity if asset else 1 }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Nơi sử dụng</label>
+                    <input type="text" name="location" class="form-control"
+                           placeholder="VD: Văn phòng, Kho..."
+                           value="{{ asset.location if asset else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Ngày mua</label>
+                    <input type="date" name="purchase_date" class="form-control"
+                           value="{{ asset.purchase_date.strftime('%Y-%m-%d') if asset and asset.purchase_date else '' }}">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Nguyên giá (VNĐ) <span class="text-danger">*</span></label>
+                    <input type="text" id="costInput" class="form-control form-control-lg"
+                           inputmode="numeric" required placeholder="0"
+                           autocomplete="off"
+                           value="{{ "{:,.0f}".format(asset.original_cost) if asset else '' }}">
+                    <input type="hidden" name="original_cost" id="costHidden"
+                           value="{{ asset.original_cost if asset else 0 }}">
+                    <small class="text-muted" id="costText">
+                        {{ "{:,.0f}".format(asset.original_cost) if asset else '0' }} đồng
+                    </small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Tỷ lệ khấu hao (%/năm)</label>
+                    <input type="number" name="depreciation_rate" class="form-control"
+                           step="0.1" min="0" max="100"
+                           value="{{ asset.depreciation_rate if asset else 0 }}">
+                    <small class="text-muted">VD: 20% (khấu hao 5 năm)</small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Ngày bắt đầu sử dụng</label>
+                    <input type="date" name="start_use_date" class="form-control"
+                           value="{{ asset.start_use_date.strftime('%Y-%m-%d') if asset and asset.start_use_date else '' }}">
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label">Ghi chú</label>
+                    <textarea name="note" class="form-control" rows="2">{{ asset.note if asset else '' }}</textarea>
+                </div>
+            </div>
+
+            <hr class="my-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save"></i> {{ "Cập nhật" if is_edit else "Thêm mới" }}
+            </button>
+            <a href="/accounting/assets" class="btn btn-secondary">Hủy</a>
+        </form>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// FORMAT NGUYÊN GIÁ VỚI DẤU CHẤM
+// ============================================================
+const costInput = document.getElementById('costInput');
+const costHidden = document.getElementById('costHidden');
+const costText = document.getElementById('costText');
+
+function readAmountVietnamese(num) {
+    if (!num || num <= 0) return '0 đồng';
+    num = parseInt(num);
+    const units = ['', 'nghìn', 'triệu', 'tỷ', 'nghìn tỷ'];
+    if (num < 1000) return num + ' đồng';
+
+    let result = '';
+    let unitIdx = 0;
+    while (num > 0) {
+        const chunk = num % 1000;
+        if (chunk > 0) {
+            result = chunk + ' ' + units[unitIdx] + (result ? ' ' + result : '');
+        }
+        num = Math.floor(num / 1000);
+        unitIdx++;
+    }
+    return result.trim() + ' đồng';
+}
+
+costInput.addEventListener('input', function() {
+    let raw = this.value.replace(/[^\d]/g, '');
+    if (raw === '') {
+        this.value = '';
+        costHidden.value = '';
+        costText.textContent = '0 đồng';
+        return;
+    }
+    raw = raw.slice(0, 15);
+    costHidden.value = raw;
+    this.value = new Intl.NumberFormat('vi-VN').format(raw);
+    costText.textContent = readAmountVietnamese(raw);
+});
+
+// Khởi tạo giá trị hiển thị khi edit
+if (costHidden.value && costHidden.value !== '0') {
+    costText.textContent = readAmountVietnamese(costHidden.value);
+}
+</script>
+{% endblock %}

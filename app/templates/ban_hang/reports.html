@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Báo cáo bán hàng{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-graph-up"></i> Báo cáo bán hàng</h2>
+    <a href="/sales/" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Bán hàng
+    </a>
+</div>
+
+<form method="get" action="/sales/reports/range" class="row g-2 mb-3">
+    <div class="col-md-3">
+        <label class="form-label small">Từ ngày</label>
+        <input type="date" name="date_from" class="form-control" value="{{ date_from or '' }}">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small">Đến ngày</label>
+        <input type="date" name="date_to" class="form-control" value="{{ date_to or '' }}">
+    </div>
+    <div class="col-auto align-self-end">
+        <button class="btn btn-primary"><i class="bi bi-search"></i> Xem báo cáo</button>
+    </div>
+</form>
+
+<!-- Thẻ tổng kết -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <small class="text-muted">Doanh thu</small>
+                <h3 class="text-primary">{{ "{:,.0f}".format(profit.revenue) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body">
+                <small class="text-muted">Giá vốn</small>
+                <h3 class="text-warning">{{ "{:,.0f}".format(profit.cost) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body">
+                <small class="text-muted">Lợi nhuận gộp</small>
+                <h3 class="text-success">{{ "{:,.0f}".format(profit.profit) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body">
+                <small class="text-muted">Tỷ suất lợi nhuận</small>
+                <h3 class="text-info">{{ "%.1f"|format(profit.margin_percent) }}%</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Doanh thu theo ngày -->
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-calendar"></i> Doanh thu theo ngày
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Ngày</th>
+                            <th class="text-center">Số đơn</th>
+                            <th class="text-end">Doanh thu</th>
+                            <th class="text-end">VAT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for day, data in daily %}
+                        <tr>
+                            <td>{{ day }}</td>
+                            <td class="text-center">{{ data.count }}</td>
+                            <td class="text-end fw-bold">{{ "{:,.0f}".format(data.revenue) }}</td>
+                            <td class="text-end">{{ "{:,.0f}".format(data.tax) }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Chưa có dữ liệu</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top sản phẩm -->
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-trophy"></i> Top sản phẩm bán chạy
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Sản phẩm</th>
+                            <th class="text-end">SL bán</th>
+                            <th class="text-end">Doanh thu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in top %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ item.product.name if item.product else "N/A" }}</td>
+                            <td class="text-end">{{ item.quantity }}</td>
+                            <td class="text-end fw-bold">{{ "{:,.0f}".format(item.revenue) }} đ</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">Chưa có dữ liệu</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

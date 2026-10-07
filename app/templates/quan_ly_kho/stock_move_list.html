@@ -1,18 +1,30 @@
 {% extends "base.html" %}
-
 {% block title %}Lịch sử Nhập/Xuất Kho{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2><i class="bi bi-arrow-left-right"></i> Lịch sử Nhập/Xuất Kho</h2>
-    <a href="/inventory/products" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i> Quay lại Sản phẩm
-    </a>
+    <div>
+        <a href="/inventory/stock-moves/export{% if filter_pid %}?product_id={{ filter_pid }}{% endif %}"
+           class="btn btn-outline-success">
+            <i class="bi bi-file-earmark-excel"></i> Xuất CSV
+        </a>
+        <a href="/inventory/products" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Sản phẩm
+        </a>
+    </div>
 </div>
 
 {% if request.query_params.get('error') %}
-<div class="alert alert-danger">
+<div class="alert alert-danger alert-dismissible fade show">
     <i class="bi bi-exclamation-triangle"></i> {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    <i class="bi bi-check-circle"></i> {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
 {% endif %}
 
@@ -20,30 +32,58 @@
     <!-- Form tạo phiếu -->
     <div class="col-md-4">
         <div class="card mb-4">
-            <div class="card-header bg-success text-white">Tạo phiếu Nhập/Xuất</div>
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-plus-circle"></i> Tạo phiếu Nhập/Xuất
+            </div>
             <div class="card-body">
-                <form method="post" action="/inventory/stock-moves/create">
+                <form method="post" action="/inventory/stock-moves/create" id="moveForm">
                     <div class="mb-2">
-                        <label class="form-label">Sản phẩm</label>
-                        <select name="product_id" class="form-select" required>
+                        <label class="form-label">Sản phẩm <span class="text-danger">*</span></label>
+                        <select name="product_id" class="form-select" required id="productSelect">
                             <option value="">-- Chọn sản phẩm --</option>
                             {% for prod, cat in products %}
-                            <option value="{{ prod.id }}">
-                                {{ prod.sku }} - {{ prod.name }} (Tồn: {{ prod.stock_quantity }})
+                            <option value="{{ prod.id }}"
+                                    data-uoms='[{% for u in [] %}{% endfor %}]'>
+                                {{ prod.sku }} - {{ prod.name }} (Tồn: {{ prod.stock_quantity }} {{ prod.unit }})
                             </option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label">Loại giao dịch</label>
-                        <select name="move_type" class="form-select" required>
-                            <option value="IN">Nhập kho (+)</option>
-                            <option value="OUT">Xuất kho (-)</option>
+                        <label class="form-label">Loại giao dịch <span class="text-danger">*</span></label>
+                        <select name="move_type" class="form-select" required id="moveType">
+                            <option value="IN">📥 Nhập kho (+)</option>
+                            <option value="OUT">📤 Xuất kho (-)</option>
                         </select>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label">Số lượng</label>
-                        <input type="number" name="quantity" class="form-control" min="1" value="1" required>
+                        <label class="form-label">Đơn vị</label>
+                        <select name="uom_id" class="form-select" id="uomSelect">
+                            <option value="">-- Đơn vị cơ bản --</option>
+                        </select>
+                        <small class="text-muted">Chọn Lốc/Thùng nếu muốn nhập theo đơn vị lớn</small>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Số lượng <span class="text-danger">*</span></label>
+                        <input type="number" name="quantity" id="qtyInput" class="form-control"
+                               min="1" value="1" required>
+                        <small class="text-muted" id="qtyHint"></small>
+                        <input type="hidden" name="uom_quantity" id="uomQtyHidden" value="0">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Đơn giá (VNĐ)</label>
+                        <input type="number" name="unit_price" class="form-control" step="100" value="0">
+                    </div>
+                    <div class="mb-2" id="exportReasonDiv" style="display:none;">
+                        <label class="form-label">Lý do xuất</label>
+                        <select name="export_reason" class="form-select">
+                            <option value="">-- Chọn --</option>
+                            <option value="BÁN">Bán hàng</option>
+                            <option value="HỦY">Hủy hàng</option>
+                            <option value="SỬ DỤNG">Sử dụng nội bộ</option>
+                            <option value="TRẢ NCC">Trả nhà cung cấp</option>
+                            <option value="KHÁC">Khác</option>
+                        </select>
                     </div>
                     <div class="mb-2">
                         <label class="form-label">Ghi chú</label>
@@ -59,36 +99,133 @@
 
     <!-- Bảng lịch sử -->
     <div class="col-md-8">
-        <table class="table table-hover bg-white">
-            <thead class="table-light">
-                <tr>
-                    <th>Ngày</th>
-                    <th>Sản phẩm</th>
-                    <th>Loại</th>
-                    <th class="text-end">Số lượng</th>
-                    <th>Ghi chú</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for move in moves %}
-                <tr>
-                    <td>{{ move.created_at.strftime("%d/%m/%Y %H:%M") }}</td>
-                    <td>{{ product_dict.get(move.product_id, "N/A") }}</td>
-                    <td>
-                        {% if move.move_type == "IN" %}
-                        <span class="badge bg-success">Nhập</span>
+        <div class="card">
+            <div class="card-header">
+                <form method="get" action="/inventory/stock-moves" class="d-flex align-items-center">
+                    <label class="me-2 text-nowrap">Lọc theo SP:</label>
+                    <select name="product_id" class="form-select form-select-sm me-2" onchange="this.form.submit()">
+                        <option value="">-- Tất cả --</option>
+                        {% for prod, cat in products %}
+                        <option value="{{ prod.id }}" {% if filter_pid == prod.id %}selected{% endif %}>
+                            {{ prod.sku }} - {{ prod.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if filter_pid %}
+                    <a href="/inventory/stock-moves" class="btn btn-sm btn-outline-danger">Xóa lọc</a>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Sản phẩm</th>
+                            <th>Loại</th>
+                            <th class="text-end">SL</th>
+                            <th class="text-end">Đơn giá</th>
+                            <th class="text-end">Thành tiền</th>
+                            <th class="text-end">Giá vốn</th>
+                            <th>Lý do</th>
+                            <th class="text-center" style="width: 90px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for move in moves %}
+                        <tr>
+                            <td><small>{{ move.created_at.strftime("%d/%m %H:%M") }}</small></td>
+                            <td><small>{{ product_dict.get(move.product_id, "N/A") }}</small></td>
+                            <td>
+                                {% if move.move_type == "IN" %}
+                                <span class="badge bg-success">Nhập</span>
+                                {% else %}
+                                <span class="badge bg-danger">Xuất</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ move.quantity }}</td>
+                            <td class="text-end"><small>{{ "{:,.0f}".format(move.unit_price) }}</small></td>
+                            <td class="text-end">
+                                <strong>{{ "{:,.0f}".format(move.unit_price * move.quantity) }}</strong>
+                            </td>
+                            <td class="text-end">
+                                {% if move.move_type == "OUT" %}
+                                <small class="text-info">{{ "{:,.0f}".format(move.cost_price_at_move) }}</small>
+                                {% else %}
+                                <small class="text-muted">—</small>
+                                {% endif %}
+                            </td>
+                            <td><small>{{ move.export_reason or move.note or "—" }}</small></td>
+                            <td class="text-center">
+                                <form method="post" action="/inventory/stock-moves/{{ move.id }}/delete"
+                                      class="d-inline" onsubmit="return confirm('Xóa phiếu này? Nếu lô nhập đã được sử dụng, hệ thống sẽ từ chối.')">
+                                    <button class="btn btn-sm btn-outline-danger" title="Xóa thường">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                                <form method="post" action="/inventory/stock-moves/{{ move.id }}/force-delete"
+                                      class="d-inline"
+                                      onsubmit="return confirm('⚠️ FORCE DELETE: Sẽ tính lại giá vốn của tất cả phiếu sau đó. Tiếp tục?')">
+                                    <button class="btn btn-sm btn-outline-dark" title="Force Delete (tính lại)">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
                         {% else %}
-                        <span class="badge bg-danger">Xuất</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-end">{{ move.quantity }}</td>
-                    <td>{{ move.note }}</td>
-                </tr>
-                {% else %}
-                <tr><td colspan="5" class="text-center text-muted">Chưa có giao dịch nào.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        <tr><td colspan="9" class="text-center text-muted py-4">
+                            Chưa có giao dịch nào.
+                        </td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+// Load UoM khi chọn sản phẩm
+document.getElementById('productSelect').addEventListener('change', async function() {
+    const pid = this.value;
+    const uomSel = document.getElementById('uomSelect');
+    uomSel.innerHTML = '<option value="">-- Đơn vị cơ bản --</option>';
+    if (!pid) return;
+
+    try {
+        const res = await fetch('/inventory/api/products/' + pid + '/uoms');
+        const data = await res.json();
+        data.uoms.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id;
+            opt.textContent = u.name + ' (×' + u.factor + ')';
+            opt.dataset.factor = u.factor;
+            uomSel.appendChild(opt);
+        });
+    } catch(e) { console.error(e); }
+});
+
+// Hiện lý do xuất khi chọn OUT
+document.getElementById('moveType').addEventListener('change', function() {
+    document.getElementById('exportReasonDiv').style.display =
+        this.value === 'OUT' ? 'block' : 'none';
+});
+
+// Quy đổi UoM → base unit
+document.getElementById('uomSelect').addEventListener('change', updateQtyHint);
+document.getElementById('qtyInput').addEventListener('input', updateQtyHint);
+
+function updateQtyHint() {
+    const uomSel = document.getElementById('uomSelect');
+    const opt = uomSel.options[uomSel.selectedIndex];
+    const factor = opt && opt.dataset.factor ? parseInt(opt.dataset.factor) : 1;
+    const qty = parseInt(document.getElementById('qtyInput').value) || 0;
+    const baseQty = factor * qty;
+    document.getElementById('uomQtyHidden').value = qty;
+    document.getElementById('qtyHint').textContent =
+        factor > 1 ? `= ${baseQty} đơn vị tồn kho` : '';
+}
+</script>
 {% endblock %}

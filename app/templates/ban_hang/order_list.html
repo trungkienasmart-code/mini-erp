@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Đơn hàng{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-receipt"></i> Đơn hàng</h2>
+    <div>
+        <a href="/sales/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Bán hàng
+        </a>
+        <a href="/sales/orders/new" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Tạo đơn mới
+        </a>
+    </div>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-5">
+        <input type="text" name="q" class="form-control"
+               placeholder="Tìm theo mã đơn..." value="{{ keyword }}">
+    </div>
+    <div class="col-md-3">
+        <select name="status" class="form-select" onchange="this.form.submit()">
+            <option value="">-- Tất cả trạng thái --</option>
+            <option value="PAID" {% if status == "PAID" %}selected{% endif %}>Đã thanh toán</option>
+            <option value="PARTIAL" {% if status == "PARTIAL" %}selected{% endif %}>Trả 1 phần</option>
+            <option value="CONFIRMED" {% if status == "CONFIRMED" %}selected{% endif %}>Chưa trả</option>
+            <option value="CANCELLED" {% if status == "CANCELLED" %}selected{% endif %}>Đã hủy</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-secondary"><i class="bi bi-search"></i> Tìm</button>
+        {% if keyword or status %}
+        <a href="/sales/orders" class="btn btn-outline-danger">
+            <i class="bi bi-x-circle"></i> Xóa lọc
+        </a>
+        {% endif %}
+    </div>
+</form>
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Mã đơn</th>
+            <th>Ngày</th>
+            <th>Khách hàng</th>
+            <th>Loại</th>
+            <th class="text-end">Tổng tiền</th>
+            <th class="text-end">Đã trả</th>
+            <th class="text-center">Trạng thái</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for o in orders %}
+        <tr>
+            <td><strong>{{ o.code }}</strong></td>
+            <td><small>{{ o.created_at.strftime("%d/%m/%y %H:%M") }}</small></td>
+            <td>{{ customer_dict.get(o.customer_id, "Khách lẻ") }}</td>
+            <td>
+                {% if o.order_type == "POS" %}
+                <span class="badge bg-info">POS</span>
+                {% else %}
+                <span class="badge bg-primary">Đơn</span>
+                {% endif %}
+            </td>
+            <td class="text-end fw-bold">{{ "{:,.0f}".format(o.total_amount) }} đ</td>
+            <td class="text-end">
+                {% if o.paid_amount >= o.total_amount %}
+                <span class="text-success">{{ "{:,.0f}".format(o.paid_amount) }} đ</span>
+                {% else %}
+                <span class="text-warning">{{ "{:,.0f}".format(o.paid_amount) }} đ</span>
+                {% endif %}
+            </td>
+            <td class="text-center">
+                {% if o.status == "PAID" %}
+                <span class="badge bg-success">Đã TT</span>
+                {% elif o.status == "PARTIAL" %}
+                <span class="badge bg-warning text-dark">1 phần</span>
+                {% elif o.status == "CONFIRMED" %}
+                <span class="badge bg-info">Chưa TT</span>
+                {% elif o.status == "CANCELLED" %}
+                <span class="badge bg-secondary">Đã hủy</span>
+                {% else %}
+                <span class="badge bg-light text-dark">{{ o.status }}</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="/sales/orders/{{ o.id }}" class="btn btn-sm btn-outline-info">
+                    <i class="bi bi-eye"></i>
+                </a>
+                <a href="/sales/orders/{{ o.id }}/print" class="btn btn-sm btn-outline-dark" target="_blank">
+                    <i class="bi bi-printer"></i>
+                </a>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">Chưa có đơn hàng nào</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Kế Toán{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-calculator"></i> Kế Toán HKD</h2>
+    {% if not profile %}
+    <a href="/accounting/settings" class="btn btn-warning">
+        <i class="bi bi-gear"></i> Cấu hình HKD
+    </a>
+    {% endif %}
+</div>
+
+{% if not profile %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <strong>Chưa cấu hình!</strong> Vui lòng vào <a href="/accounting/settings">Cấu hình HKD</a> để thiết lập thông tin và nhóm thuế.
+</div>
+{% endif %}
+
+<!-- Menu chính -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <a href="/accounting/vouchers" class="text-decoration-none">
+            <div class="card text-center h-100 border-primary">
+                <div class="card-body">
+                    <i class="bi bi-receipt-cutoff text-primary" style="font-size: 2.5rem;"></i>
+                    <h5 class="mt-2">Phiếu thu/chi</h5>
+                    <small class="text-muted">Thu tiền, chi tiền</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="/accounting/cash-accounts" class="text-decoration-none">
+            <div class="card text-center h-100 border-success">
+                <div class="card-body">
+                    <i class="bi bi-wallet2 text-success" style="font-size: 2.5rem;"></i>
+                    <h5 class="mt-2">Tài khoản quỹ</h5>
+                    <small class="text-muted">{{ account_count }} tài khoản</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="/accounting/assets" class="text-decoration-none">
+            <div class="card text-center h-100 border-info">
+                <div class="card-body">
+                    <i class="bi bi-building text-info" style="font-size: 2.5rem;"></i>
+                    <h5 class="mt-2">Tài sản cố định</h5>
+                    <small class="text-muted">{{ asset_count }} tài sản</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="/accounting/reports" class="text-decoration-none">
+            <div class="card text-center h-100 border-danger">
+                <div class="card-body">
+                    <i class="bi bi-file-earmark-bar-graph text-danger" style="font-size: 2.5rem;"></i>
+                    <h5 class="mt-2">Sổ sách</h5>
+                    <small class="text-muted">7 mẫu TT152</small>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- Thống kê -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <small class="text-muted"><i class="bi bi-cash-stack"></i> Tiền mặt</small>
+                <h3 class="text-primary">{{ "{:,.0f}".format(total_cash) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body">
+                <small class="text-muted"><i class="bi bi-bank"></i> Ngân hàng</small>
+                <h3 class="text-success">{{ "{:,.0f}".format(total_bank) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body">
+                <small class="text-muted"><i class="bi bi-graph-up"></i> DT tháng này</small>
+                <h3 class="text-info">{{ "{:,.0f}".format(tax_summary.revenue) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body">
+                <small class="text-muted"><i class="bi bi-percent"></i> Thuế phải nộp</small>
+                <h3 class="text-warning">{{ "{:,.0f}".format(tax_summary.total) }} đ</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Công nợ -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <i class="bi bi-cash-coin"></i> Công nợ
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <small class="text-muted">Phải thu KH</small>
+                        <h4 class="text-success">{{ "{:,.0f}".format(debt.receivable) }} đ</h4>
+                        <small class="text-muted">{{ debt.customers|length }} khách</small>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Phải trả NCC</small>
+                        <h4 class="text-danger">{{ "{:,.0f}".format(debt.payable) }} đ</h4>
+                        <small class="text-muted">{{ debt.suppliers|length }} NCC</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="text-center">
+                    <small class="text-muted">Chênh lệch</small>
+                    <h5 class="{% if debt.net >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if debt.net > 0 %}+{% endif %}{{ "{:,.0f}".format(debt.net) }} đ
+                    </h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cấu hình HKD -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-info-circle"></i> Thông tin HKD
+            </div>
+            <div class="card-body">
+                {% if profile %}
+                <table class="table table-sm mb-0">
+                    <tr><th width="50%">Tên HKD</th><td>{{ profile.business_name }}</td></tr>
+                    <tr><th>MST</th><td>{{ profile.tax_code or "—" }}</td></tr>
+                    <tr><th>Nhóm HKD</th>
+                        <td>
+                            {% if profile.hkd_group == 1 %}
+                            <span class="badge bg-success">Nhóm 1 — Miễn thuế</span>
+                            {% elif profile.hkd_group == 2 %}
+                            <span class="badge bg-primary">Nhóm 2 — GTGT+TNCN theo %</span>
+                            {% elif profile.hkd_group == 3 %}
+                            <span class="badge bg-warning text-dark">Nhóm 3 — GTGT % + TNCN thu nhập</span>
+                            {% elif profile.hkd_group == 4 %}
+                            <span class="badge bg-danger">Nhóm 4 — Có thuế khác</span>
+                            {% endif %}
+                        </td></tr>
+                    <tr><th>Thuế GTGT bán lẻ</th><td>{{ profile.vat_rate_retail }}%</td></tr>
+                    <tr><th>Thuế TNCN</th><td>{{ profile.tncn_rate }}%</td></tr>
+                </table>
+                {% else %}
+                <p class="text-muted mb-2">Chưa cấu hình. Bấm nút bên dưới để thiết lập.</p>
+                {% endif %}
+                <a href="/accounting/settings" class="btn btn-outline-info btn-sm mt-2">
+                    <i class="bi bi-gear"></i> Sửa cấu hình
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

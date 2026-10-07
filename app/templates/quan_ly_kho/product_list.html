@@ -1,13 +1,18 @@
 {% extends "base.html" %}
-
-{% block title %}Quản lý Sản phẩm{% endblock %}
+{% block title %}Danh sách Sản phẩm{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2><i class="bi bi-box-seam"></i> Danh sách Sản phẩm</h2>
     <div>
         <a href="/inventory/stock-moves" class="btn btn-outline-primary">
-            <i class="bi bi-arrow-left-right"></i> Lịch sử Nhập/Xuất
+            <i class="bi bi-arrow-left-right"></i> Nhập/Xuất
+        </a>
+        <a href="/inventory/suppliers" class="btn btn-outline-secondary">
+            <i class="bi bi-truck"></i> Nhà cung cấp
+        </a>
+        <a href="/inventory/categories" class="btn btn-outline-secondary">
+            <i class="bi bi-tags"></i> Danh mục
         </a>
         <a href="/inventory/products/new" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Thêm Sản phẩm
@@ -16,76 +21,93 @@
 </div>
 
 {% if request.query_params.get('error') %}
-<div class="alert alert-danger">
+<div class="alert alert-danger alert-dismissible fade show">
     <i class="bi bi-exclamation-triangle"></i> {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
 {% endif %}
 
-<!-- Thanh tìm kiếm + Form danh mục nhanh -->
-<div class="row mb-3">
-    <div class="col-md-8">
-        <form method="get" action="/inventory/products" class="d-flex">
-            <input type="text" name="q" class="form-control me-2"
-                   placeholder="Tìm theo mã SKU hoặc tên sản phẩm..."
-                   value="{{ keyword }}">
-            <button class="btn btn-outline-secondary" type="submit">
-                <i class="bi bi-search"></i> Tìm
-            </button>
-            {% if keyword %}
-            <a href="/inventory/products" class="btn btn-outline-danger ms-2">
-                <i class="bi bi-x-circle"></i> Xóa lọc
-            </a>
-            {% endif %}
-        </form>
-    </div>
-    <div class="col-md-4">
-        <form method="post" action="/inventory/categories/create" class="d-flex">
-            <input type="text" name="name" class="form-control me-2"
-                   placeholder="Tên danh mục mới" required>
-            <button type="submit" class="btn btn-secondary text-nowrap">
-                <i class="bi bi-tag"></i> Thêm DM
-            </button>
-        </form>
-    </div>
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    <i class="bi bi-check-circle"></i> {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
+{% endif %}
 
-<!-- Bảng sản phẩm -->
+<!-- Thanh tìm kiếm -->
+<form method="get" action="/inventory/products" class="row g-2 mb-3">
+    <div class="col-md-6">
+        <input type="text" name="q" class="form-control"
+               placeholder="Tìm theo mã SKU hoặc tên sản phẩm..."
+               value="{{ keyword }}">
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-secondary" type="submit">
+            <i class="bi bi-search"></i> Tìm
+        </button>
+        {% if keyword %}
+        <a href="/inventory/products" class="btn btn-outline-danger">
+            <i class="bi bi-x-circle"></i> Xóa lọc
+        </a>
+        {% endif %}
+    </div>
+</form>
+
 <div class="table-responsive">
-<table class="table table-hover bg-white">
+<table class="table table-hover bg-white align-middle">
     <thead class="table-light">
         <tr>
             <th>Mã SKU</th>
             <th>Tên sản phẩm</th>
             <th>Danh mục</th>
-            <th>ĐVT</th>
             <th class="text-end">Giá nhập</th>
             <th class="text-end">Giá bán</th>
+            <th class="text-center">Margin</th>
+            <th class="text-center">VAT</th>
             <th class="text-center">Tồn kho</th>
-            <th class="text-center" style="width: 120px;">Thao tác</th>
+            <th class="text-center" style="width: 140px;">Thao tác</th>
         </tr>
     </thead>
     <tbody>
         {% for prod in products %}
-        <tr>
+        <tr {% if prod.low_stock %}class="table-warning"{% endif %}>
             <td><strong>{{ prod.sku }}</strong></td>
-            <td>{{ prod.name }}</td>
+            <td>
+                <a href="/inventory/products/{{ prod.id }}" class="text-decoration-none">
+                    {{ prod.name }}
+                </a>
+                <br><small class="text-muted">{{ prod.unit }} · {{ prod.cost_method }}</small>
+            </td>
             <td><span class="badge bg-secondary">{{ prod.category_name }}</span></td>
-            <td>{{ prod.unit }}</td>
             <td class="text-end">{{ "{:,.0f}".format(prod.cost_price) }} đ</td>
             <td class="text-end">{{ "{:,.0f}".format(prod.price) }} đ</td>
             <td class="text-center">
-                <span class="badge {% if prod.stock_quantity > 0 %}bg-success{% else %}bg-secondary{% endif %}">
+                {% if prod.margin < 10 %}
+                <span class="badge bg-danger">{{ "%.1f"|format(prod.margin) }}%</span>
+                {% elif prod.margin < 20 %}
+                <span class="badge bg-warning text-dark">{{ "%.1f"|format(prod.margin) }}%</span>
+                {% else %}
+                <span class="badge bg-success">{{ "%.1f"|format(prod.margin) }}%</span>
+                {% endif %}
+            </td>
+            <td class="text-center">{{ prod.tax_rate }}%</td>
+            <td class="text-center">
+                <span class="badge {% if prod.low_stock %}bg-danger{% elif prod.stock_quantity > 0 %}bg-primary{% else %}bg-secondary{% endif %}">
                     {{ prod.stock_quantity }}
                 </span>
+                {% if prod.low_stock %}
+                <br><small class="text-danger"><i class="bi bi-exclamation-triangle"></i> Sắp hết</small>
+                {% endif %}
             </td>
             <td class="text-center">
-                <a href="/inventory/products/{{ prod.id }}/edit"
-                   class="btn btn-sm btn-outline-primary" title="Sửa">
+                <a href="/inventory/products/{{ prod.id }}" class="btn btn-sm btn-outline-info" title="Chi tiết">
+                    <i class="bi bi-eye"></i>
+                </a>
+                <a href="/inventory/products/{{ prod.id }}/edit" class="btn btn-sm btn-outline-primary" title="Sửa">
                     <i class="bi bi-pencil"></i>
                 </a>
                 <form method="post" action="/inventory/products/{{ prod.id }}/delete"
-                      class="d-inline"
-                      onsubmit="return confirm('Bạn chắc chắn muốn xóa sản phẩm này?')">
+                      class="d-inline" onsubmit="return confirm('Xóa sản phẩm này?')">
                     <button class="btn btn-sm btn-outline-danger" title="Xóa">
                         <i class="bi bi-trash"></i>
                     </button>
@@ -93,15 +115,10 @@
             </td>
         </tr>
         {% else %}
-        <tr>
-            <td colspan="8" class="text-center text-muted py-4">
-                {% if keyword %}
-                Không tìm thấy sản phẩm nào phù hợp với "{{ keyword }}".
-                {% else %}
-                Chưa có sản phẩm nào. Hãy bấm "Thêm Sản phẩm" để bắt đầu.
-                {% endif %}
-            </td>
-        </tr>
+        <tr><td colspan="9" class="text-center text-muted py-4">
+            {% if keyword %}Không tìm thấy sản phẩm nào phù hợp.
+            {% else %}Chưa có sản phẩm nào. Hãy bấm "Thêm Sản phẩm".{% endif %}
+        </td></tr>
         {% endfor %}
     </tbody>
 </table>

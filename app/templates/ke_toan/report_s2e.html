@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block title %}Sổ S2e-HKD{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <h2><i class="bi bi-wallet2"></i> Sổ S2e-HKD — Chi tiết tiền</h2>
+    <div>
+        {% if data %}
+        <button onclick="window.print()" class="btn btn-outline-dark">
+            <i class="bi bi-printer"></i> In
+        </button>
+        {% endif %}
+        <a href="/accounting/reports" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Quay lại
+        </a>
+    </div>
+</div>
+
+<form method="get" class="row g-2 mb-3 no-print">
+    <div class="col-md-3">
+        <label class="form-label small">Tài khoản quỹ</label>
+        <select name="cash_account_id" class="form-select" required>
+            <option value="">-- Chọn tài khoản --</option>
+            {% for a in accounts %}
+            <option value="{{ a.id }}" {% if selected_id == a.id %}selected{% endif %}>
+                {{ a.code }} - {{ a.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small">Từ ngày</label>
+        <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small">Đến ngày</label>
+        <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary"><i class="bi bi-search"></i> Xem sổ</button>
+    </div>
+</form>
+
+{% if not data %}
+<div class="alert alert-info text-center py-5">
+    <i class="bi bi-info-circle" style="font-size: 3rem;"></i>
+    <p class="mt-3">Vui lòng chọn <strong>tài khoản quỹ</strong> và khoảng thời gian để xem sổ.</p>
+</div>
+{% else %}
+
+<!-- Tổng kết -->
+<!-- Tổng kết -->
+<div class="row g-3 mb-3 no-print">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <small class="text-muted">Tài khoản</small>
+                <h5 class="text-primary">{{ data.account.code }}</h5>
+                <small>{{ data.account.name }}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body">
+                <small class="text-muted">Số dư đầu kỳ</small>
+                <h4 class="text-info">{{ "{:,.0f}".format(data.opening) }} đ</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body">
+                <small class="text-muted">Tổng thu trong kỳ</small>
+                <h4 class="text-success">
+                    +{{ "{:,.0f}".format(data.transactions | map(attribute='receipt') | sum) }} đ
+                </h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-danger">
+            <div class="card-body">
+                <small class="text-muted">Tổng chi trong kỳ</small>
+                <h4 class="text-danger">
+                    -{{ "{:,.0f}".format(data.transactions | map(attribute='payment') | sum) }} đ
+                </h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="print-area">
+    <div class="text-center mb-3">
+        <div class="fw-bold">{{ profile.business_name if profile else 'HỘ KINH DOANH' }}</div>
+        {% if profile and profile.tax_code %}<div>Mã số thuế: {{ profile.tax_code }}</div>{% endif %}
+    </div>
+
+    <div class="text-center mb-3">
+        <h4>SỔ CHI TIẾT TIỀN</h4>
+        <div><em>(Mẫu số S2e-HKD)</em></div>
+        <div class="mt-2">Tài khoản: <strong>{{ data.account.code }} - {{ data.account.name }}</strong></div>
+        {% if data.account.account_type == "BANK" and data.account.bank_name %}
+        <div>Ngân hàng: {{ data.account.bank_name }}
+            {% if data.account.bank_account_no %} — STK: {{ data.account.bank_account_no }}{% endif %}
+        </div>
+        {% endif %}
+        <div class="mt-2">Từ ngày {{ date_from }} đến ngày {{ date_to }}</div>
+        <div class="small">Đơn vị tính: đồng</div>
+    </div>
+
+    <table class="table table-bordered table-sm">
+        <thead class="table-light text-center">
+            <tr>
+                <th rowspan="2" style="width: 80px;">Ngày</th>
+                <th rowspan="2" style="width: 80px;">Số hiệu</th>
+                <th rowspan="2">Diễn giải</th>
+                <th colspan="2">Số tiền</th>
+                <th rowspan="2" style="width: 110px;">Số dư</th>
+            </tr>
+            <tr>
+                <th style="width: 110px;">Thu/Gửi vào</th>
+                <th style="width: 110px;">Chi/Rút ra</th>
+            </tr>
+            <tr class="text-center fst-italic small">
+                <td>(1)</td><td>(2)</td><td>(3)</td><td>(4)</td><td>(5)</td><td>(6)</td>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Số dư đầu kỳ -->
+            <tr class="table-info">
+                <td colspan="5" class="fw-bold">Số dư đầu kỳ</td>
+                <td class="text-end fw-bold">{{ "{:,.0f}".format(data.opening) }}</td>
+            </tr>
+
+            {% for t in data.transactions %}
+            <tr>
+                <td class="text-center"><small>{{ t.date.strftime("%d/%m/%Y") }}</small></td>
+                <td class="text-center"><small>{{ t.code }}</small></td>
+                <td>{{ t.diary }}</td>
+                <td class="text-end text-success">
+                    {% if t.receipt > 0 %}{{ "{:,.0f}".format(t.receipt) }}{% else %}—{% endif %}
+                </td>
+                <td class="text-end text-danger">
+                    {% if t.payment > 0 %}{{ "{:,.0f}".format(t.payment) }}{% else %}—{% endif %}
+                </td>
+                <td class="text-end fw-bold">{{ "{:,.0f}".format(t.balance) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="table-warning fw-bold">
+                <td colspan="3" class="text-end">TỔNG CỘNG PHÁT SINH:</td>
+                <td class="text-end text-success">
+                    {{ "{:,.0f}".format(data.transactions | map(attribute='receipt') | sum) }}
+                </td>
+                <td class="text-end text-danger">
+                    {{ "{:,.0f}".format(data.transactions | map(attribute='payment') | sum) }}
+                </td>
+                <td></td>
+            </tr>
+            <tr class="table-success fw-bold">
+                <td colspan="5" class="text-end">SỐ DƯ CUỐI KỲ:</td>
+                <td class="text-end">{{ "{:,.0f}".format(data.closing) }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="small mt-2">
+        <em>- Sổ này dùng để theo dõi chi tiết các khoản thu, chi tiền mặt hoặc tiền gửi ngân hàng.</em>
+        <br><em>- Số liệu lấy từ danh sách phiếu thu, phiếu chi.</em>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-6 text-center">
+            <strong>Người đại diện HKD</strong>
+            <div class="small">(Ký, họ tên, đóng dấu)</div>
+            <div style="height: 60px;"></div>
+        </div>
+        <div class="col-6 text-center">
+            <strong>Ngày ... tháng ... năm ...</strong>
+            <div class="small">Người lập sổ</div>
+            <div style="height: 60px;"></div>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+
+<style>
+@media print {
+    /* Ẩn hoàn toàn các phần không cần in */
+    nav, .navbar, .sidebar, aside, header, footer,
+    .no-print, .btn, .btn-close, .alert {
+        display: none !important;
+    }
+
+    /* Reset layout khi in */
+    body {
+        font-size: 12px;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+    }
+
+    .container-fluid, .row {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Cột main chiếm toàn bộ chiều rộng khi in */
+    [class*="col-"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 0 0 100% !important;
+        padding: 0 !important;
+    }
+
+    /* Vùng in chính */
+    .print-area {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Bảng sổ kế toán */
+    table {
+        page-break-inside: auto;
+        width: 100% !important;
+    }
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+
+    /* Màu chữ khi in */
+    .text-success { color: #198754 !important; }
+    .text-danger { color: #dc3545 !important; }
+    .text-info { color: #0dcaf0 !important; }
+    .text-primary { color: #0d6efd !important; }
+    .text-warning { color: #ffc107 !important; }
+
+    /* Ẩn màu nền để tiết kiệm mực */
+    .table-light, .table-info, .table-warning, .table-success {
+        background-color: transparent !important;
+    }
+}
+</style>
+{% endblock %}

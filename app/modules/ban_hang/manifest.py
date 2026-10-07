@@ -1,0 +1,20 @@
+MANIFEST = {
+    "name": "Bán Hàng",
+    "version": "1.0.0",
+    "summary": "POS, đơn hàng, khách hàng, công nợ",
+    "depends": ["quan_ly_kho"],
+    "author": "Tên bạn",
+    "category": "Sales",
+    "icon": "bi-cart-check",
+    "url_prefix": "/sales",
+    "menus": [
+        {"name": "Dashboard", "url": "/sales/", "icon": "bi-speedometer2"},
+        {"name": "Bán hàng POS", "url": "/sales/pos", "icon": "bi-cart-plus"},
+        {"name": "Đơn hàng", "url": "/sales/orders", "icon": "bi-receipt"},
+        {"name": "Trả hàng", "url": "/sales/returns", "icon": "bi-arrow-return-left"},
+        {"name": "Khách hàng", "url": "/sales/customers", "icon": "bi-people"},
+        {"name": "Mã giảm giá", "url": "/sales/discounts", "icon": "bi-ticket-perforated"},
+        {"name": "Ca làm việc", "url": "/sales/shifts", "icon": "bi-clock-history"},
+        {"name": "Báo cáo", "url": "/sales/reports", "icon": "bi-graph-up"},
+    ],
+}

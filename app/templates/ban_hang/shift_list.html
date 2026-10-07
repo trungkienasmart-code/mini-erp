@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Lịch sử ca{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-clock-history"></i> Lịch sử ca làm việc</h2>
+    <a href="/sales/" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Bán hàng
+    </a>
+</div>
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Mã ca</th>
+            <th>Mở ca</th>
+            <th>Đóng ca</th>
+            <th class="text-end">Doanh thu</th>
+            <th class="text-end">Chênh lệch tiền mặt</th>
+            <th class="text-center">Trạng thái</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in shifts %}
+        <tr>
+            <td><strong>{{ s.code }}</strong></td>
+            <td><small>{{ s.opened_at.strftime("%d/%m %H:%M") }}</small></td>
+            <td><small>{{ s.closed_at.strftime("%d/%m %H:%M") if s.closed_at else "—" }}</small></td>
+            <td class="text-end">{{ "{:,.0f}".format(s.total_revenue) }} đ</td>
+            <td class="text-end">
+                {% if s.status == "CLOSED" %}
+                    {% if s.cash_difference == 0 %}
+                    <span class="text-success">0 đ</span>
+                    {% elif s.cash_difference > 0 %}
+                    <span class="text-primary">+{{ "{:,.0f}".format(s.cash_difference) }} đ</span>
+                    {% else %}
+                    <span class="text-danger">{{ "{:,.0f}".format(s.cash_difference) }} đ</span>
+                    {% endif %}
+                {% else %}—{% endif %}
+            </td>
+            <td class="text-center">
+                {% if s.status == "OPEN" %}
+                <span class="badge bg-success">Đang mở</span>
+                {% else %}
+                <span class="badge bg-secondary">Đã đóng</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="/sales/shifts/{{ s.id }}" class="btn btn-sm btn-outline-info">
+                    <i class="bi bi-eye"></i> Xem
+                </a>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">Chưa có ca nào</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

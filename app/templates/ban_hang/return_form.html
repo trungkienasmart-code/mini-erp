@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Tạo phiếu trả{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-arrow-return-left"></i> Tạo phiếu trả hàng</h2>
+    <a href="/sales/returns" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Khách hàng</label>
+                        <select id="returnCustomer" class="form-select">
+                            <option value="">-- Chọn khách hàng --</option>
+                            {% for c in customers %}
+                            <option value="{{ c.id }}">{{ c.name }}{% if c.phone %} ({{ c.phone }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Đơn gốc (nếu có)</label>
+                        <input type="number" id="originalOrderId" class="form-control"
+                               placeholder="ID đơn hàng gốc"
+                               value="{{ original_order_id or '' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Hình thức hoàn</label>
+                        <select id="refundMethod" class="form-select">
+                            <option value="CASH">💵 Hoàn tiền mặt</option>
+                            <option value="BANK">🏦 Chuyển khoản</option>
+                            <option value="CREDIT_NOTE">📝 Ghi giảm công nợ</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Lý do trả</label>
+                        <input type="text" id="returnReason" class="form-control"
+                               placeholder="VD: Hàng lỗi, đổi ý...">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header bg-warning text-dark">
+                <i class="bi bi-list-ul"></i> Sản phẩm trả
+            </div>
+            <div class="card-body">
+                <input type="text" id="returnSearch" class="form-control mb-3"
+                       placeholder="Gõ tên hoặc mã SKU để thêm sản phẩm trả...">
+                <table class="table table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Sản phẩm</th>
+                            <th style="width: 100px;">SL trả</th>
+                            <th style="width: 120px;">Đơn giá</th>
+                            <th class="text-end" style="width: 120px;">Hoàn tiền</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="returnLines">
+                        <tr><td colspan="5" class="text-center text-muted py-3">Chưa có sản phẩm</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <i class="bi bi-calculator"></i> Tổng hoàn
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="fs-5">TỔNG HOÀN:</span>
+                    <strong id="sumRefund" class="fs-4 text-danger">0 đ</strong>
+                </div>
+                <button class="btn btn-danger w-100" onclick="submitReturn()">
+                    <i class="bi bi-check-circle"></i> Tạo phiếu & Nhập kho
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let allProducts = {{ products | tojson }};
+let returnLines = [];
+
+function formatMoney(n) {
+    return new Intl.NumberFormat('vi-VN').format(Math.round(n)) + ' đ';
+}
+
+const searchInput = document.getElementById('returnSearch');
+const searchResults = document.createElement('div');
+searchResults.className = 'search-results';
+searchInput.parentElement.style.position = 'relative';
+searchInput.parentElement.appendChild(searchResults);
+
+searchInput.addEventListener('input', async () => {
+    const q = searchInput.value.trim();
+    if (q.length < 2) { searchResults.classList.remove('show'); return; }
+    try {
+        const res = await fetch('/sales/api/search-product?q=' + encodeURIComponent(q));
+        const data = await res.json();
+        if (data.products.length === 0) { searchResults.classList.remove('show'); return; }
+        searchResults.innerHTML = data.products.map(p => `
+            <div class="search-item" onclick="addReturnLine(${p.id})">
+                <strong>${p.sku}</strong> - ${p.name}
+                <span class="text-danger ms-2">${formatMoney(p.price)}</span>
+            </div>
+        `).join('');
+        searchResults.classList.add('show');
+    } catch(e) { console.error(e); }
+});
+
+function addReturnLine(pid) {
+    const p = allProducts.find(x => x.id === pid);
+    if (!p) return;
+    returnLines.push({
+        product_id: pid, sku: p.sku, name: p.name,
+        quantity: 1, unit_price: p.price,
+    });
+    searchInput.value = '';
+    searchResults.classList.remove('show');
+    renderReturnLines();
+    searchInput.focus();
+}
+
+function renderReturnLines() {
+    const tbody = document.getElementById('returnLines');
+    if (returnLines.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Chưa có sản phẩm</td></tr>';
+        document.getElementById('sumRefund').textContent = '0 đ';
+        return;
+    }
+    let total = 0;
+    tbody.innerHTML = returnLines.map((l, idx) => {
+        const refund = l.quantity * l.unit_price;
+        total += refund;
+        return `<tr>
+            <td><strong>${l.sku}</strong> - ${l.name}</td>
+            <td><input type="number" min="1" value="${l.quantity}" class="form-control form-control-sm"
+                       onchange="updateReturnLine(${idx}, 'quantity', this.value)"></td>
+            <td><input type="number" step="100" value="${l.unit_price}" class="form-control form-control-sm"
+                       onchange="updateReturnLine(${idx}, 'unit_price', this.value)"></td>
+            <td class="text-end fw-bold text-danger">${formatMoney(refund)}</td>
+            <td><button class="btn btn-sm btn-outline-danger" onclick="removeReturnLine(${idx})">
+                <i class="bi bi-x"></i></button></td>
+        </tr>`;
+    }).join('');
+    document.getElementById('sumRefund').textContent = formatMoney(total);
+}
+
+function updateReturnLine(idx, field, val) {
+    returnLines[idx][field] = parseFloat(val) || 0;
+    renderReturnLines();
+}
+function removeReturnLine(idx) {
+    returnLines.splice(idx, 1);
+    renderReturnLines();
+}
+
+async function submitReturn() {
+    if (returnLines.length === 0) { alert('Chưa có sản phẩm trả!'); return; }
+    const customerId = document.getElementById('returnCustomer').value;
+    const originalOrderId = document.getElementById('originalOrderId').value;
+
+    if (!confirm('Xác nhận tạo phiếu trả? Hàng sẽ được nhập lại kho với giá vốn gốc.')) return;
+
+    const payload = {
+        original_order_id: originalOrderId ? parseInt(originalOrderId) : null,
+        customer_id: customerId ? parseInt(customerId) : null,
+        refund_method: document.getElementById('refundMethod').value,
+        reason: document.getElementById('returnReason').value,
+        lines: returnLines.map(l => ({
+            product_id: l.product_id,
+            quantity: l.quantity,
+            unit_price: l.unit_price,
+            reason: "",
+        })),
+    };
+
+    try {
+        const res = await fetch('/sales/returns/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (data.success) {
+            window.location.href = '/sales/returns/' + data.return_id;
+        } else {
+            alert('Lỗi: ' + data.message);
+        }
+    } catch(e) {
+        alert('Lỗi: ' + e);
+    }
+}
+
+searchInput.focus();
+</script>
+
+<style>
+.search-results { position: absolute; top: 100%; left: 0; right: 0; background: white;
+                  border: 1px solid #ddd; border-radius: 4px; max-height: 300px; overflow-y: auto;
+                  z-index: 100; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+.search-results.show { display: block; }
+.search-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #eee; }
+.search-item:hover { background: #e9ecef; }
+</style>
+{% endblock %}

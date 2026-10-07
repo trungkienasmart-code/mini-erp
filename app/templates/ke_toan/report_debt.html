@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Công nợ tổng hợp{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <h2><i class="bi bi-cash-coin"></i> Công nợ tổng hợp</h2>
+    <div>
+        <button onclick="window.print()" class="btn btn-outline-dark">
+            <i class="bi bi-printer"></i> In
+        </button>
+        <a href="/accounting/reports" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Quay lại
+        </a>
+    </div>
+</div>
+
+<!-- Thẻ tổng kết -->
+<div class="row g-3 mb-4 no-print">
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body">
+                <small class="text-muted"><i class="bi bi-arrow-down-circle"></i> Tổng phải thu KH</small>
+                <h3 class="text-success">{{ "{:,.0f}".format(receivable) }} đ</h3>
+                <small class="text-muted">{{ customers|length }} khách hàng</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-danger">
+            <div class="card-body">
+                <small class="text-muted"><i class="bi bi-arrow-up-circle"></i> Tổng phải trả NCC</small>
+                <h3 class="text-danger">{{ "{:,.0f}".format(payable) }} đ</h3>
+                <small class="text-muted">{{ suppliers|length }} nhà cung cấp</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card {% if net >= 0 %}border-info{% else %}border-warning{% endif %}">
+            <div class="card-body">
+                <small class="text-muted"><i class="bi bi-arrow-left-right"></i> Chênh lệch (Thu - Trả)</small>
+                <h3 class="{% if net >= 0 %}text-info{% else %}text-warning{% endif %}">
+                    {% if net > 0 %}+{% endif %}{{ "{:,.0f}".format(net) }} đ
+                </h3>
+                <small class="text-muted">
+                    {% if net > 0 %}Khách nợ nhiều hơn{% elif net < 0 %}Đang nợ NCC nhiều hơn{% else %}Cân bằng{% endif %}
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="print-area">
+    <div class="text-center mb-3">
+        <div class="fw-bold">CÔNG NỢ TỔNG HỢP</div>
+        <div class="small">Ngày lập: {{ now if now else '' }}</div>
+        <div class="small">Đơn vị tính: đồng</div>
+    </div>
+
+    <!-- PHẢI THU KHÁCH HÀNG -->
+    <h5 class="text-success mt-4">
+        <i class="bi bi-arrow-down-circle"></i> I. PHẢI THU KHÁCH HÀNG
+    </h5>
+    <table class="table table-bordered table-sm">
+        <thead class="table-light text-center">
+            <tr>
+                <th style="width: 50px;">STT</th>
+                <th style="width: 100px;">Mã KH</th>
+                <th>Tên khách hàng</th>
+                <th style="width: 130px;">Điện thoại</th>
+                <th style="width: 100px;">Loại</th>
+                <th style="width: 130px;">Số tiền nợ</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in customers %}
+            <tr>
+                <td class="text-center">{{ loop.index }}</td>
+                <td><strong>{{ c.code }}</strong></td>
+                <td>{{ c.name }}</td>
+                <td>{{ c.phone or "—" }}</td>
+                <td class="text-center">
+                    {% if c.customer_type == "RETAIL" %}
+                    <span class="badge bg-info">Lẻ</span>
+                    {% else %}
+                    <span class="badge bg-primary">Buôn</span>
+                    {% endif %}
+                </td>
+                <td class="text-end fw-bold text-success">{{ "{:,.0f}".format(c.current_debt) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-3">
+                Không có khách hàng nào đang nợ 🎉
+            </td></tr>
+            {% endfor %}
+        </tbody>
+        {% if customers %}
+        <tfoot>
+            <tr class="table-success fw-bold">
+                <td colspan="5" class="text-end">TỔNG PHẢI THU:</td>
+                <td class="text-end">{{ "{:,.0f}".format(receivable) }}</td>
+            </tr>
+        </tfoot>
+        {% endif %}
+    </table>
+
+    <!-- PHẢI TRẢ NCC -->
+    <h5 class="text-danger mt-5">
+        <i class="bi bi-arrow-up-circle"></i> II. PHẢI TRẢ NHÀ CUNG CẤP
+    </h5>
+    <table class="table table-bordered table-sm">
+        <thead class="table-light text-center">
+            <tr>
+                <th style="width: 50px;">STT</th>
+                <th style="width: 100px;">Mã NCC</th>
+                <th>Tên nhà cung cấp</th>
+                <th style="width: 130px;">Điện thoại</th>
+                <th style="width: 100px;">Số ngày nợ</th>
+                <th style="width: 130px;">Số tiền nợ</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in suppliers %}
+            <tr>
+                <td class="text-center">{{ loop.index }}</td>
+                <td><strong>{{ s.code }}</strong></td>
+                <td>{{ s.name }}</td>
+                <td>{{ s.phone or "—" }}</td>
+                <td class="text-center">
+                    <span class="badge bg-info">{{ s.payment_term_days }} ngày</span>
+                </td>
+                <td class="text-end fw-bold text-danger">{{ "{:,.0f}".format(s.current_debt) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-3">
+                Không có NCC nào đang nợ 🎉
+            </td></tr>
+            {% endfor %}
+        </tbody>
+        {% if suppliers %}
+        <tfoot>
+            <tr class="table-danger fw-bold">
+                <td colspan="5" class="text-end">TỔNG PHẢI TRẢ:</td>
+                <td class="text-end">{{ "{:,.0f}".format(payable) }}</td>
+            </tr>
+        </tfoot>
+        {% endif %}
+    </table>
+
+    <!-- TỔNG KẾT -->
+    <div class="row mt-4">
+        <div class="col-md-8 offset-md-4">
+            <table class="table table-bordered">
+                <tr>
+                    <td class="fw-bold">Tổng phải thu khách hàng:</td>
+                    <td class="text-end text-success fw-bold">+{{ "{:,.0f}".format(receivable) }} đ</td>
+                </tr>
+                <tr>
+                    <td class="fw-bold">Tổng phải trả nhà cung cấp:</td>
+                    <td class="text-end text-danger fw-bold">-{{ "{:,.0f}".format(payable) }} đ</td>
+                </tr>
+                <tr class="table-warning">
+                    <td class="fw-bold fs-5">CHÊNH LỆCH:</td>
+                    <td class="text-end fw-bold fs-5 {% if net >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if net > 0 %}+{% endif %}{{ "{:,.0f}".format(net) }} đ
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="small mt-2">
+        <em>- Báo cáo này tổng hợp công nợ hiện tại của khách hàng và nhà cung cấp.</em>
+        <br><em>- Số liệu lấy từ đơn bán hàng (KH nợ) và đơn mua hàng (NCC nợ).</em>
+        <br><em>- Để xem chi tiết từng đối tượng, vào module Bán hàng hoặc Mua hàng.</em>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-6 text-center">
+            <strong>Người đại diện HKD</strong>
+            <div class="small">(Ký, họ tên, đóng dấu)</div>
+            <div style="height: 60px;"></div>
+        </div>
+        <div class="col-6 text-center">
+            <strong>Ngày ... tháng ... năm ...</strong>
+            <div class="small">Người lập báo cáo</div>
+            <div style="height: 60px;"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    nav, .navbar, .sidebar, aside, header, footer,
+    .no-print, .btn, .btn-close, .alert {
+        display: none !important;
+    }
+    body { font-size: 12px; margin: 0 !important; padding: 0 !important; background: white !important; }
+    .container-fluid, .row { margin: 0 !important; padding: 0 !important; }
+    [class*="col-"] {
+        width: 100% !important; max-width: 100% !important;
+        flex: 0 0 100% !important; padding: 0 !important;
+    }
+    .print-area { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+    table { page-break-inside: auto; width: 100% !important; }
+    tr { page-break-inside: avoid; }
+    .text-success { color: #198754 !important; }
+    .text-danger { color: #dc3545 !important; }
+    .text-info { color: #0dcaf0 !important; }
+    .text-warning { color: #ffc107 !important; }
+    .text-primary { color: #0d6efd !important; }
+    .table-light, .table-info, .table-warning, .table-danger, .table-success {
+        background-color: transparent !important;
+    }
+    .col-md-8.offset-md-4 {
+        width: 100% !important;
+        margin: 0 !important;
+    }
+}
+</style>
+{% endblock %}

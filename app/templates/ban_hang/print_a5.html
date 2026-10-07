@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Hóa đơn {{ order.code }}</title>
+<style>
+@page { size: A5; margin: 10mm; }
+body { font-family: Arial, sans-serif; font-size: 11px; color: #000; }
+h1 { font-size: 18px; text-align: center; margin: 0; }
+.center { text-align: center; }
+.header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+th, td { border: 1px solid #333; padding: 4px 6px; }
+th { background: #eee; }
+.right { text-align: right; }
+.bold { font-weight: bold; }
+.total { font-size: 14px; }
+.signature { display: flex; justify-content: space-around; margin-top: 20px; }
+.signature div { text-align: center; }
+.small { font-size: 10px; color: #555; }
+@media print { .toolbar { display: none; } }
+.toolbar { padding: 10px; background: #f0f0f0; text-align: center; margin-bottom: 10px; }
+.toolbar button, .toolbar a { padding: 8px 15px; margin: 0 5px; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+    <button onclick="window.print()">🖨️ In (Ctrl+P)</button>
+    <a href="/sales/orders/{{ order.id }}">← Quay lại</a>
+    <button onclick="window.close()">✕ Đóng</button>
+</div>
+
+<div class="header">
+    <div>
+        <h1>CỬA HÀNG MINI ERP</h1>
+        <div>Địa chỉ: 123 Đường ABC, Q.1, TP.HCM</div>
+        <div>ĐT: 0900 000 000 — MST: 0123456789</div>
+    </div>
+    <    <div style="text-align:right;">
+        <div class="bold">Số HĐ: {{ order.code }}</div>
+        <div>Ngày: {{ order.created_at.strftime("%d/%m/%Y") }}</div>
+        <div>Giờ: {{ order.created_at.strftime("%H:%M") }}</div>
+        <div>Thu ngân: {{ "NV" + "%03d"|format(order.user_id or 1) }}</div>
+        <div id="printTimeA5" class="small">In lúc: ...</div>
+    </div>
+</div>
+
+<div class="center bold" style="font-size:14px; margin: 10px 0;">
+    HÓA ĐƠN BÁN HÀNG
+</div>
+
+<div>
+{% if order.want_vat_invoice and order.vat_company_name %}
+<div><strong>Đơn vị:</strong> {{ order.vat_company_name }}</div>
+<div><strong>MST:</strong> {{ order.vat_tax_code }}</div>
+<div><strong>Địa chỉ:</strong> {{ order.vat_address }}</div>
+{% if order.vat_email %}<div><strong>Email:</strong> {{ order.vat_email }}</div>{% endif %}
+{% if order.customer_phone or (customer and customer.phone) %}
+<div><strong>SĐT:</strong> {{ order.customer_phone or customer.phone }}</div>
+{% endif %}
+{% else %}
+<div><strong>Khách hàng:</strong> {{ customer.name if customer else "Khách lẻ" }}</div>
+{% if customer and customer.address %}<div><strong>Địa chỉ:</strong> {{ customer.address }}</div>{% endif %}
+{% if order.customer_phone or (customer and customer.phone) %}
+<div><strong>SĐT:</strong> {{ order.customer_phone or customer.phone }}</div>
+{% endif %}
+{% if customer and customer.tax_code %}<div><strong>MST:</strong> {{ customer.tax_code }}</div>{% endif %}
+{% endif %}
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th style="width: 30px;">STT</th>
+            <th>Tên sản phẩm</th>
+            <th style="width: 50px;">SL</th>
+            <th style="width: 80px;">Đơn giá</th>
+            <th style="width: 80px;">Thành tiền</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for l in lines %}
+        <tr>
+            <td class="center">{{ loop.index }}</td>
+            <td>{{ product_dict[l.product_id].name if product_dict.get(l.product_id) else "SP" }}</td>
+            <td class="center">{{ l.quantity }}</td>
+            <td class="right">{{ "{:,.0f}".format(l.unit_price) }}</td>
+            <td class="right">{{ "{:,.0f}".format(l.line_subtotal - l.discount_amount) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr><td colspan="4" class="right">Tạm tính:</td>
+            <td class="right">{{ "{:,.0f}".format(order.subtotal) }}</td></tr>
+        {% if order.discount_amount > 0 %}
+        <tr><td colspan="4" class="right">Giảm giá:</td>
+            <td class="right">-{{ "{:,.0f}".format(order.discount_amount) }}</td></tr>
+        {% endif %}
+        <tr><td colspan="4" class="right">VAT:</td>
+            <td class="right">{{ "{:,.0f}".format(order.tax_amount) }}</td></tr>
+        <tr class="total bold">
+            <td colspan="4" class="right">TỔNG CỘNG:</td>
+            <td class="right">{{ "{:,.0f}".format(order.total_amount) }} đ</td>
+        </tr>
+        {% if order.payment_method == "CASH" and order.customer_paid > 0 %}
+        <tr><td colspan="4" class="right">Khách đưa:</td>
+            <td class="right">{{ "{:,.0f}".format(order.customer_paid) }} đ</td></tr>
+        <tr><td colspan="4" class="right">Tiền thối:</td>
+            <td class="right bold">{{ "{:,.0f}".format(order.change_amount) }} đ</td></tr>
+        {% endif %}
+    </tfoot>
+</table>
+
+<div class="small" style="margin-top: 8px;">
+    <em>Số tiền bằng chữ: ......................................................</em>
+</div>
+
+<div class="signature">
+    <div>
+        <div class="bold">Người mua hàng</div>
+        <div class="small">(Ký, ghi rõ họ tên)</div>
+        <div style="height: 60px;"></div>
+    </div>
+    <div>
+        <div class="bold">Người bán hàng</div>
+        <div class="small">(Ký, ghi rõ họ tên)</div>
+        <div style="height: 60px;"></div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('printTimeA5').textContent =
+        'In lúc: ' + new Date().toLocaleString('vi-VN');
+</script>
+</body>
+</html>

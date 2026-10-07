@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Bán Hàng{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-cart-check"></i> Bán Hàng</h2>
+    {% if open_shift %}
+    <div>
+        <span class="badge bg-success fs-6 me-2">
+            <i class="bi bi-clock"></i> Ca đang mở: {{ open_shift.code }}
+        </span>
+        <a href="/sales/shift/close" class="btn btn-warning">
+            <i class="bi bi-lock"></i> Đóng ca
+        </a>
+    </div>
+    {% else %}
+    <a href="/sales/shift/open" class="btn btn-success">
+        <i class="bi bi-unlock"></i> Mở ca
+    </a>
+    {% endif %}
+</div>
+
+<!-- Menu chính -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <a href="/sales/pos" class="text-decoration-none">
+            <div class="card text-center h-100 border-primary">
+                <div class="card-body">
+                    <i class="bi bi-cart-plus text-primary" style="font-size: 3rem;"></i>
+                    <h5 class="mt-2">Bán hàng POS</h5>
+                    <small class="text-muted">Bán lẻ tại quầy</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="/sales/orders" class="text-decoration-none">
+            <div class="card text-center h-100 border-info">
+                <div class="card-body">
+                    <i class="bi bi-receipt text-info" style="font-size: 3rem;"></i>
+                    <h5 class="mt-2">Đơn hàng</h5>
+                    <small class="text-muted">Danh sách & tạo đơn</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="/sales/returns" class="text-decoration-none">
+            <div class="card text-center h-100 border-warning">
+                <div class="card-body">
+                    <i class="bi bi-arrow-return-left text-warning" style="font-size: 3rem;"></i>
+                    <h5 class="mt-2">Trả hàng</h5>
+                    <small class="text-muted">Khách trả lại hàng</small>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3">
+        <a href="/sales/reports" class="text-decoration-none">
+            <div class="card text-center h-100 border-success">
+                <div class="card-body">
+                    <i class="bi bi-graph-up text-success" style="font-size: 3rem;"></i>
+                    <h5 class="mt-2">Báo cáo</h5>
+                    <small class="text-muted">Doanh thu & lợi nhuận</small>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- Thống kê hôm nay -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <small class="text-muted">Doanh thu hôm nay</small>
+                <h3 class="text-primary">{{ "{:,.0f}".format(profit.revenue) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body">
+                <small class="text-muted">Lợi nhuận gộp</small>
+                <h3 class="text-success">{{ "{:,.0f}".format(profit.profit) }} đ</h3>
+                <small>Margin: {{ "%.1f"|format(profit.margin_percent) }}%</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body">
+                <small class="text-muted">Số đơn hôm nay</small>
+                <h3 class="text-info">{{ order_count }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body">
+                <small class="text-muted">Giá vốn hàng bán</small>
+                <h3 class="text-warning">{{ "{:,.0f}".format(profit.cost) }} đ</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Menu phụ -->
+<div class="row g-3">
+    <div class="col-md-4">
+        <a href="/sales/customers" class="btn btn-outline-secondary w-100">
+            <i class="bi bi-people"></i> Quản lý khách hàng
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="/sales/discounts" class="btn btn-outline-secondary w-100">
+            <i class="bi bi-ticket-perforated"></i> Mã giảm giá
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="/sales/shifts" class="btn btn-outline-secondary w-100">
+            <i class="bi bi-clock-history"></i> Lịch sử ca
+        </a>
+    </div>
+</div>
+{% endblock %}

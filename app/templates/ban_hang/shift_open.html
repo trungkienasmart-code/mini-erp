@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Mở ca{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white text-center">
+                <h4><i class="bi bi-unlock"></i> Mở ca làm việc</h4>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Bắt đầu ca làm việc mới. Vui lòng đếm tiền lẻ đầu ca và nhập vào ô dưới đây.</p>
+                <form method="post" action="/sales/shift/open">
+                    <div class="mb-3">
+                        <label class="form-label">Tiền lẻ đầu ca (VNĐ)</label>
+                        <input type="number" name="opening_cash" class="form-control form-control-lg"
+                               step="1000" value="0" required autofocus>
+                        <small class="text-muted">Số tiền mặt hiện có trong két để thối khách</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ghi chú</label>
+                        <input type="text" name="note" class="form-control"
+                               placeholder="VD: Ca sáng, ca chiều...">
+                    </div>
+                    <button type="submit" class="btn btn-success btn-lg w-100">
+                        <i class="bi bi-play-circle"></i> Bắt đầu ca
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

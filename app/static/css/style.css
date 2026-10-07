@@ -1,12 +1,55 @@
+/* Sidebar styles */
 .sidebar .nav-link {
     color: #333;
     border-radius: 4px;
     margin-bottom: 2px;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+    transition: background 0.15s;
 }
 .sidebar .nav-link:hover {
     background-color: #e9ecef;
 }
 .sidebar .nav-link.active {
     background-color: #0d6efd;
+    color: #fff !important;
+}
+.sidebar .nav-link.active i {
     color: #fff;
+}
+
+/* Sub-menu */
+.sidebar .collapse .nav-link {
+    padding: 5px 10px;
+    font-size: 0.85rem;
+    color: #555;
+    border-left: 2px solid transparent;
+}
+.sidebar .collapse .nav-link:hover {
+    background-color: #e9ecef;
+    border-left-color: #0d6efd;
+}
+.sidebar .collapse .nav-link.active {
+    background-color: #cfe2ff;
+    color: #0d6efd !important;
+    border-left-color: #0d6efd;
+    font-weight: 600;
+}
+
+/* Chevron xoay khi mở */
+.sidebar .nav-link[aria-expanded="true"] .bi-chevron-down {
+    transform: rotate(180deg);
+    transition: transform 0.2s;
+}
+.sidebar .bi-chevron-down {
+    transition: transform 0.2s;
+}
+
+/* Scrollbar mỏng */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
 }

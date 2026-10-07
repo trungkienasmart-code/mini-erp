@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Phiếu trả {{ ret.code }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-arrow-return-right"></i> Phiếu trả {{ ret.code }}</h2>
+    <div>
+        {% if ret.status == "CONFIRMED" %}
+        <a href="/purchase/returns/{{ ret.id }}/print" target="_blank"
+           class="btn btn-outline-dark">
+            <i class="bi bi-printer"></i> In phiếu trả
+        </a>
+        {% endif %}
+        <a href="/purchase/returns" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Quay lại
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger">{{ request.query_params.get('error') }}</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success">{{ request.query_params.get('success') }}</div>
+{% endif %}
+
+<!-- Workflow steps -->
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-around text-center">
+            <div>
+                <i class="bi bi-{% if ret.status in ['DRAFT','APPROVED','CONFIRMED'] %}check-circle-fill text-success{% else %}circle{% endif %} fs-3"></i>
+                <div class="small">1. Tạo phiếu</div>
+            </div>
+            <div><i class="bi bi-arrow-right fs-3 text-muted"></i></div>
+            <div>
+                <i class="bi bi-{% if ret.status in ['APPROVED','CONFIRMED'] %}check-circle-fill text-success{% else %}circle{% endif %} fs-3"></i>
+                <div class="small">2. Duyệt & gửi NCC</div>
+            </div>
+            <div><i class="bi bi-arrow-right fs-3 text-muted"></i></div>
+            <div>
+                <i class="bi bi-{% if ret.status == 'CONFIRMED' %}check-circle-fill text-success{% else %}circle{% endif %} fs-3"></i>
+                <div class="small">3. Xác nhận trả</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">Thông tin phiếu</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><th width="30%">Mã phiếu</th><td><strong>{{ ret.code }}</strong></td></tr>
+                    <tr><th>Ngày tạo</th><td>{{ ret.created_at.strftime("%d/%m/%Y %H:%M") }}</td></tr>
+                    <tr><th>Nhà cung cấp</th><td>{{ supplier.name if supplier else "N/A" }}</td></tr>
+                    <tr><th>Trạng thái</th>
+                        <td>
+                            {% if ret.status == "DRAFT" %}<span class="badge bg-secondary">Nháp</span>
+                            {% elif ret.status == "APPROVED" %}<span class="badge bg-info">Đã duyệt</span>
+                            {% elif ret.status == "CONFIRMED" %}<span class="badge bg-success">Đã xác nhận</span>
+                            {% elif ret.status == "CANCELLED" %}<span class="badge bg-dark">Đã hủy</span>
+                            {% endif %}
+                        </td></tr>
+                    <tr><th>Hình thức hoàn</th><td>
+                        {% if ret.refund_method == "CREDIT" %}📝 Ghi giảm công nợ
+                        {% elif ret.refund_method == "CASH" %}💵 Tiền mặt
+                        {% elif ret.refund_method == "BANK" %}🏦 Chuyển khoản
+                        {% endif %}
+                    </td></tr>
+                    <tr><th>Lý do</th><td>{{ ret.reason or "—" }}</td></tr>
+                    {% if ret.note %}<tr><th>Ghi chú</th><td>{{ ret.note }}</td></tr>{% endif %}
+                    {% if ret.signature_note %}
+                    <tr><th>Xác nhận NCC</th><td>{{ ret.signature_note }}</td></tr>
+                    {% endif %}
+                    {% if ret.email_sent_at %}
+                    <tr><th>Đã gửi email</th>
+                        <td>{{ ret.email_sent_at.strftime("%d/%m/%Y %H:%M") }} → {{ ret.email_sent_to }}</td></tr>
+                    {% endif %}
+                    {% if ret.confirmed_at %}
+                    <tr><th>Xác nhận lúc</th>
+                        <td>{{ ret.confirmed_at.strftime("%d/%m/%Y %H:%M") }}</td></tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-secondary text-white">Chi tiết hàng trả</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Mã hàng</th>
+                            <th>Tên sản phẩm</th>
+                            <th class="text-end">SL</th>
+                            <th class="text-end">Giá nhập</th>
+                            <th class="text-end">Hoàn tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for l in lines %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td><strong>{{ product_dict[l.product_id].sku if product_dict.get(l.product_id) else "N/A" }}</strong></td>
+                            <td>{{ product_dict[l.product_id].name if product_dict.get(l.product_id) else "" }}</td>
+                            <td class="text-end">{{ l.quantity }}</td>
+                            <td class="text-end">{{ "{:,.0f}".format(l.unit_price) }}</td>
+                            <td class="text-end fw-bold text-danger">
+                                {{ "{:,.0f}".format(l.refund_amount) }} đ
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-warning">
+                            <th colspan="4" class="text-end">TỔNG HOÀN:</th>
+                            <th class="text-end fs-5 text-danger">
+                                -{{ "{:,.0f}".format(ret.total_amount) }} đ
+                            </th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Actions -->
+        {% if ret.status == "DRAFT" %}
+        <div class="card border-info mb-3">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-lightning"></i> Bước 2: Duyệt phiếu
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">Duyệt để gửi NCC kiểm hàng.</p>
+                <form method="post" action="/purchase/returns/{{ ret.id }}/approve">
+                    <button class="btn btn-success w-100 mb-2">
+                        <i class="bi bi-check-circle"></i> Duyệt phiếu
+                    </button>
+                </form>
+                <form method="post" action="/purchase/returns/{{ ret.id }}/email-sent">
+                    <div class="input-group input-group-sm">
+                        <input type="email" name="email_to" class="form-control"
+                               placeholder="Email NCC"
+                               value="{{ supplier.email if supplier else '' }}">
+                        <button class="btn btn-outline-primary">
+                            <i class="bi bi-envelope"></i> Đã gửi
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if ret.status == "APPROVED" %}
+        <div class="card border-warning mb-3">
+            <div class="card-header bg-warning text-dark">
+                <i class="bi bi-check2-square"></i> Bước 3: Xác nhận trả thực tế
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning small mb-2">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Chỉ bấm xác nhận SAU KHI NCC đã nhận hàng trả và ký xác nhận.
+                </div>
+                <form method="post" action="/purchase/returns/{{ ret.id }}/confirm"
+                      onsubmit="return confirm('Xác nhận đã trả hàng?\n\nHệ thống sẽ:\n- Xuất kho các mặt hàng\n- Giảm công nợ NCC {{ '{:,.0f}'.format(ret.total_amount) }}đ')">
+                    <div class="mb-2">
+                        <label class="form-label small">Người nhận hàng (NCC)</label>
+                        <input type="text" name="signature_note" class="form-control form-control-sm"
+                               placeholder="VD: Anh Nam - thủ kho NCC" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Ghi chú xác nhận</label>
+                        <input type="text" name="note" class="form-control form-control-sm">
+                    </div>
+                    <button class="btn btn-danger w-100">
+                        <i class="bi bi-check2-circle"></i> XÁC NHẬN ĐÃ TRẢ HÀNG
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if ret.status == "CONFIRMED" %}
+        <div class="alert alert-success">
+            <i class="bi bi-check-circle-fill"></i> <strong>Đã hoàn thành</strong><br>
+            Hàng đã xuất kho, công nợ NCC đã được giảm.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

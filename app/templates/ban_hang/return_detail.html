@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Phiếu trả {{ ret.code }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-arrow-return-left"></i> Phiếu trả {{ ret.code }}</h2>
+    <a href="/sales/returns" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-header">Thông tin phiếu</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><th width="30%">Mã phiếu</th><td><strong>{{ ret.code }}</strong></td></tr>
+                    <tr><th>Ngày tạo</th><td>{{ ret.created_at.strftime("%d/%m/%Y %H:%M") }}</td></tr>
+                    <tr><th>Khách hàng</th><td>{{ customer.name if customer else "Khách lẻ" }}</td></tr>
+                    {% if ret.original_order_id %}
+                    <tr><th>Đơn gốc</th><td><a href="/sales/orders/{{ ret.original_order_id }}">#{{ ret.original_order_id }}</a></td></tr>
+                    {% endif %}
+                    <tr><th>Hình thức hoàn</th><td>
+                        {% if ret.refund_method == "CASH" %}💵 Tiền mặt
+                        {% elif ret.refund_method == "BANK" %}🏦 Chuyển khoản
+                        {% elif ret.refund_method == "CREDIT_NOTE" %}📝 Ghi giảm công nợ
+                        {% endif %}
+                    </td></tr>
+                    <tr><th>Lý do</th><td>{{ ret.reason or "—" }}</td></tr>
+                    {% if ret.note %}<tr><th>Ghi chú</th><td>{{ ret.note }}</td></tr>{% endif %}
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Chi tiết hàng trả</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Sản phẩm</th>
+                            <th class="text-end">SL</th>
+                            <th class="text-end">Đơn giá</th>
+                            <th class="text-end">Giá vốn</th>
+                            <th class="text-end">Hoàn tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for l in lines %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ product_dict.get(l.product_id, "N/A") }}</td>
+                            <td class="text-end">{{ l.quantity }}</td>
+                            <td class="text-end">{{ "{:,.0f}".format(l.unit_price) }}</td>
+                            <td class="text-end text-info">{{ "{:,.0f}".format(l.cost_price) }}</td>
+                            <td class="text-end fw-bold text-danger">{{ "{:,.0f}".format(l.refund_amount) }} đ</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-warning">
+                            <th colspan="5" class="text-end">TỔNG HOÀN:</th>
+                            <th class="text-end fs-5 text-danger">-{{ "{:,.0f}".format(ret.total_amount) }} đ</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="alert alert-info">
+            <strong><i class="bi bi-info-circle"></i> Ghi chú:</strong>
+            Hàng đã được nhập lại kho với <strong>giá vốn gốc</strong> từ đơn bán ban đầu.
+            Lô hàng này sẽ được dùng cho các lần xuất kho tiếp theo theo phương pháp FIFO/LIFO.
+        </div>
+    </div>
+</div>
+{% endblock %}

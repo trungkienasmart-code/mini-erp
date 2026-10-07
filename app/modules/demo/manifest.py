@@ -1,10 +1,13 @@
 MANIFEST = {
-    "name": "Demo",
+    "name": "Demo (test)",
     "version": "1.0.0",
-    "summary": "Module mẫu để kiểm tra luồng hoạt động",
-    "depends": [],  # Không phụ thuộc module nào
-    "author": "Tên bạn",
+    "summary": "Module mẫu để test",
+    "depends": [],
+    "author": "Admin",
     "category": "Tools",
-    "icon": "bi-journal-text", # Icon Bootstrap
-    "url": "/demo/notes",      # Đường dẫn menu
+    "icon": "bi-journal-text",
+    "url_prefix": "/demo",
+    "menus": [
+        {"name": "Ghi chú", "url": "/demo/notes", "icon": "bi-journal"},
+    ],
 }

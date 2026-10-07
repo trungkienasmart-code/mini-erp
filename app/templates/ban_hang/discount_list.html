@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Mã giảm giá{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-ticket-perforated"></i> Mã giảm giá</h2>
+    <div>
+        <a href="/sales/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Bán hàng
+        </a>
+        <a href="/sales/discounts/new" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Thêm mã
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger">{{ request.query_params.get('error') }}</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success">{{ request.query_params.get('success') }}</div>
+{% endif %}
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Mã</th>
+            <th>Tên chương trình</th>
+            <th>Loại</th>
+            <th class="text-end">Giá trị</th>
+            <th class="text-center">Đã dùng</th>
+            <th class="text-center">Trạng thái</th>
+            <th class="text-center" style="width: 100px;"></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for d in codes %}
+        <tr>
+            <td><code>{{ d.code }}</code></td>
+            <td>{{ d.name }}</td>
+            <td>
+                {% if d.discount_type == "PERCENT" %}
+                <span class="badge bg-info">%</span>
+                {% else %}
+                <span class="badge bg-warning text-dark">VNĐ</span>
+                {% endif %}
+            </td>
+            <td class="text-end">
+                {% if d.discount_type == "PERCENT" %}
+                {{ d.discount_value }}%
+                {% if d.max_discount > 0 %}<small class="text-muted">(max {{ "{:,.0f}".format(d.max_discount) }})</small>{% endif %}
+                {% else %}
+                {{ "{:,.0f}".format(d.discount_value) }} đ
+                {% endif %}
+            </td>
+            <td class="text-center">
+                {{ d.used_count }}{% if d.max_uses > 0 %}/{{ d.max_uses }}{% endif %}
+            </td>
+            <td class="text-center">
+                {% if d.status == "ACTIVE" %}
+                <span class="badge bg-success">Hoạt động</span>
+                {% else %}
+                <span class="badge bg-secondary">Ngừng</span>
+                {% endif %}
+            </td>
+            <td class="text-center">
+                <a href="/sales/discounts/{{ d.id }}/edit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                <form method="post" action="/sales/discounts/{{ d.id }}/delete"
+                      class="d-inline" onsubmit="return confirm('Xóa mã này?')">
+                    <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">Chưa có mã giảm giá nào</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% block title %}Đóng ca - {{ shift.code }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-lock"></i> Đóng ca {{ shift.code }}</h2>
+    <a href="/sales/pos" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại POS
+    </a>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger">{{ request.query_params.get('error') }}</div>
+{% endif %}
+
+<div class="row">
+    <!-- Tổng kết lý thuyết -->
+    <div class="col-md-5">
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-info-circle"></i> Tổng kết lý thuyết
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <th>Tiền lẻ đầu ca</th>
+                        <td class="text-end">{{ "{:,.0f}".format(shift.opening_cash) }} đ</td>
+                    </tr>
+                    <tr>
+                        <th>Mở ca lúc</th>
+                        <td class="text-end">{{ shift.opened_at.strftime("%d/%m/%Y %H:%M") }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Chọn tài khoản quỹ -->
+        <div class="card mb-3">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-wallet2"></i> Tài khoản nhận tiền
+            </div>
+            <div class="card-body">
+                                <div class="mb-2">
+                    <label class="form-label small">Nhận tiền mặt vào:</label>
+                    {% if cash_list %}
+                    <select id="cashAccountId" class="form-select form-select-sm">
+                        <option value="">-- Không sinh phiếu --</option>
+                        {% for a in cash_list %}
+                        <option value="{{ a.id }}">{{ a.code }} - {{ a.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    <div class="alert alert-danger small mb-0 py-2">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <strong>Chưa có tài khoản quỹ TIỀN MẶT!</strong><br>
+                        <a href="/accounting/cash-accounts/new" target="_blank" class="alert-link">
+                            → Tạo tài khoản TM001 ngay
+                        </a>
+                    </div>
+                    <input type="hidden" id="cashAccountId" value="">
+                    {% endif %}
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Nhận chuyển khoản vào:</label>
+                    <select id="bankAccountId" class="form-select form-select-sm">
+                        <option value="">-- Không sinh phiếu --</option>
+                        {% for a in bank_list %}
+                        <option value="{{ a.id }}">{{ a.code }} - {{ a.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="alert alert-warning small mb-0">
+                    <i class="bi bi-info-circle"></i>
+                    Hệ thống sẽ tự sinh phiếu thu/chi vào sổ quỹ khi đóng ca.
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-info small">
+            <i class="bi bi-lightbulb"></i>
+            <strong>Hướng dẫn:</strong> Đếm tiền thực tế trong két, nhập số lượng từng mệnh giá bên phải.
+            Hệ thống sẽ tự tính chênh lệch và sinh phiếu kế toán.
+        </div>
+    </div>
+
+    <!-- Kiểm đếm mệnh giá -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-calculator"></i> Kiểm đếm tiền mặt
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Mệnh giá</th>
+                            <th class="text-center" style="width: 120px;">Số tờ</th>
+                            <th class="text-end" style="width: 140px;">Thành tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody id="denomTable">
+                        <!-- Sinh bằng JS -->
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-warning">
+                            <th colspan="2">TỔNG CỘNG</th>
+                            <th class="text-end" id="totalCounted">0 đ</th>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <hr>
+                <div class="mb-3">
+                    <label class="form-label">Ghi chú đóng ca</label>
+                    <textarea id="closeNote" class="form-control" rows="2"
+                              placeholder="VD: Chênh lệch do thối nhầm..."></textarea>
+                </div>
+
+                <button type="button" class="btn btn-outline-primary w-100 mb-2" onclick="previewClose()">
+                    <i class="bi bi-eye"></i> Xem trước & Kiểm tra
+                </button>
+                <button type="button" class="btn btn-danger btn-lg w-100" onclick="submitClose()">
+                    <i class="bi bi-lock-fill"></i> XÁC NHẬN ĐÓNG CA
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal preview -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="bi bi-clipboard-check"></i> Xem trước kết ca</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="previewContent">
+                <!-- Nội dung preview -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const DENOMINATIONS = [500000, 200000, 100000, 50000, 20000, 10000, 5000, 2000, 1000, 500];
+let previewModal;
+
+function formatMoney(n) {
+    return new Intl.NumberFormat('vi-VN').format(n) + ' đ';
+}
+
+function buildTable() {
+    const tbody = document.getElementById('denomTable');
+    tbody.innerHTML = '';
+    DENOMINATIONS.forEach(d => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${formatMoney(d)}</strong></td>
+            <td>
+                <input type="number" class="form-control form-control-sm text-center denom-input"
+                       data-denom="${d}" value="0" min="0" onchange="recalc()" oninput="recalc()">
+            </td>
+            <td class="text-end subtotal" data-denom="${d}">0 đ</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function recalc() {
+    let total = 0;
+    document.querySelectorAll('.denom-input').forEach(input => {
+        const denom = parseInt(input.dataset.denom);
+        const qty = parseInt(input.value) || 0;
+        const sub = denom * qty;
+        document.querySelector(`.subtotal[data-denom="${denom}"]`).textContent = formatMoney(sub);
+        total += sub;
+    });
+    document.getElementById('totalCounted').textContent = formatMoney(total);
+    return total;
+}
+
+function getDenoms() {
+    const denoms = [];
+    document.querySelectorAll('.denom-input').forEach(input => {
+        const denom = parseInt(input.dataset.denom);
+        const qty = parseInt(input.value) || 0;
+        if (qty > 0) denoms.push({ denomination: denom, quantity: qty });
+    });
+    return denoms;
+}
+
+async function previewClose() {
+    const totalCash = recalc();
+    if (totalCash === 0) {
+        if (!confirm('Bạn chưa nhập tiền đếm thực tế. Vẫn tiếp tục xem trước?')) return;
+    }
+
+    try {
+        const res = await fetch('/sales/shift/preview-close', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ counted_cash: totalCash }),
+        });
+        const data = await res.json();
+
+        if (!data.ok) {
+            alert('Lỗi: ' + data.message);
+            return;
+        }
+
+        renderPreview(data);
+        previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
+        previewModal.show();
+    } catch(e) {
+        alert('Lỗi kết nối: ' + e);
+    }
+}
+
+function renderPreview(d) {
+    let html = '';
+
+    // Cảnh báo chênh lệch lớn
+    if (d.warning) {
+        html += `<div class="alert alert-danger">
+            <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">${d.warning}</pre>
+        </div>`;
+    }
+
+    // Bảng tổng kết
+    html += `
+        <table class="table table-sm">
+            <tr><th>Tiền lẻ đầu ca</th><td class="text-end">${formatMoney(d.opening_cash)}</td></tr>
+            <tr><th>Tiền mặt bán trong ca</th><td class="text-end text-success">+${formatMoney(d.total_cash)}</td></tr>
+            <tr><th>Chuyển khoản bán trong ca</th><td class="text-end text-success">+${formatMoney(d.total_bank)}</td></tr>
+            <tr><th>Thẻ bán trong ca</th><td class="text-end">${formatMoney(d.total_card)}</td></tr>
+            <tr><th>Ghi nợ bán trong ca</th><td class="text-end">${formatMoney(d.total_debt)}</td></tr>
+            <tr><th>Trả hàng tiền mặt</th><td class="text-end text-danger">-${formatMoney(d.total_returns)}</td></tr>
+            <tr class="table-info">
+                <th>Tiền mặt lý thuyết</th>
+                <td class="text-end fw-bold">${formatMoney(d.expected_cash)}</td>
+            </tr>
+            <tr><th>Tiền mặt đếm thực tế</th><td class="text-end fw-bold">${formatMoney(d.counted_cash)}</td></tr>
+            <tr class="${d.change === 0 ? 'table-success' : (d.change > 0 ? 'table-primary' : 'table-danger')}">
+                <th>CHÊNH LỆCH</th>
+                <td class="text-end fw-bold fs-5">${d.change > 0 ? '+' : ''}${formatMoney(d.change)}</td>
+            </tr>
+        </table>
+
+        <h6 class="mt-3"><i class="bi bi-receipt"></i> Phiếu kế toán sẽ sinh tự động:</h6>
+    `;
+
+    if (d.planned_vouchers.length === 0) {
+        html += '<div class="alert alert-warning">Không có phiếu nào được sinh (do doanh thu = 0 hoặc chưa chọn tài khoản quỹ).</div>';
+    } else {
+        html += '<ul class="list-group">';
+        d.planned_vouchers.forEach(v => {
+            const icon = v.type === 'receipt' ? '📥' : '📤';
+            const color = v.type === 'receipt' ? 'success' : 'danger';
+            const typeName = v.type === 'receipt' ? 'Phiếu thu' : 'Phiếu chi';
+            html += `<li class="list-group-item d-flex justify-content-between">
+                <span>${icon} <strong>${typeName}</strong>: ${v.label}</span>
+                <strong class="text-${color}">${formatMoney(v.amount)}</strong>
+            </li>`;
+        });
+        html += '</ul>';
+    }
+
+    document.getElementById('previewContent').innerHTML = html;
+}
+
+async function submitClose() {
+    const totalCash = recalc();
+    const cashAcc = document.getElementById('cashAccountId').value;
+    const bankAcc = document.getElementById('bankAccountId').value;
+
+    let msg = `Xác nhận đóng ca?\n\n`;
+    msg += `Tiền mặt đếm: ${formatMoney(totalCash)}\n`;
+    if (cashAcc) msg += `Nhận tiền mặt vào: TK đã chọn\n`;
+    if (bankAcc) msg += `Nhận CK vào: TK đã chọn\n`;
+    msg += `\nSau khi đóng ca, không thể sửa.`;
+
+    if (!confirm(msg)) return;
+
+    try {
+        const res = await fetch('/sales/shift/close', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                denominations: getDenoms(),
+                counted_cash: totalCash,
+                cash_account_id: cashAcc ? parseInt(cashAcc) : null,
+                bank_account_id: bankAcc ? parseInt(bankAcc) : null,
+                note: document.getElementById('closeNote').value,
+            }),
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(data.message);
+            window.location.href = data.report_url;
+        } else {
+            alert('Lỗi: ' + data.message);
+        }
+    } catch (e) {
+        alert('Lỗi kết nối: ' + e);
+    }
+}
+
+buildTable();
+</script>
+{% endblock %}

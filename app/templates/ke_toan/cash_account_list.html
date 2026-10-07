@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Tài khoản quỹ{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-wallet2"></i> Tài khoản quỹ</h2>
+    <div>
+        <a href="/accounting/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Dashboard
+        </a>
+        <a href="/accounting/cash-accounts/new" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Thêm tài khoản
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- Tổng kết -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-primary">
+            <div class="card-body">
+                <small class="text-muted">Tiền mặt</small>
+                <h3 class="text-primary">
+                    {{ "{:,.0f}".format(accounts | selectattr('account_type', 'equalto', 'CASH') | map(attribute='current_balance') | sum) }} đ
+                </h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body">
+                <small class="text-muted">Ngân hàng</small>
+                <h3 class="text-success">
+                    {{ "{:,.0f}".format(accounts | selectattr('account_type', 'equalto', 'BANK') | map(attribute='current_balance') | sum) }} đ
+                </h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-info">
+            <div class="card-body">
+                <small class="text-muted">Tổng tài sản tiền</small>
+                <h3 class="text-info">
+                    {{ "{:,.0f}".format(accounts | map(attribute='current_balance') | sum) }} đ
+                </h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Mã</th>
+            <th>Tên tài khoản</th>
+            <th>Loại</th>
+            <th>Ngân hàng</th>
+            <th class="text-end">Số dư đầu kỳ</th>
+            <th class="text-end">Số dư hiện tại</th>
+            <th class="text-center">Trạng thái</th>
+            <th class="text-center" style="width: 120px;">Thao tác</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for a in accounts %}
+        <tr {% if a.status != "ACTIVE" %}class="table-secondary"{% endif %}>
+            <td><strong>{{ a.code }}</strong></td>
+            <td>{{ a.name }}</td>
+            <td>
+                {% if a.account_type == "CASH" %}
+                <span class="badge bg-primary"><i class="bi bi-cash-stack"></i> Tiền mặt</span>
+                {% else %}
+                <span class="badge bg-success"><i class="bi bi-bank"></i> Ngân hàng</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if a.account_type == "BANK" %}
+                <small>
+                    {{ a.bank_name or "—" }}
+                    {% if a.bank_account_no %}<br>STK: {{ a.bank_account_no }}{% endif %}
+                </small>
+                {% else %}—{% endif %}
+            </td>
+            <td class="text-end">{{ "{:,.0f}".format(a.opening_balance) }} đ</td>
+            <td class="text-end fw-bold {% if a.current_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {{ "{:,.0f}".format(a.current_balance) }} đ
+            </td>
+            <td class="text-center">
+                {% if a.status == "ACTIVE" %}
+                <span class="badge bg-success">Hoạt động</span>
+                {% else %}
+                <span class="badge bg-secondary">Ngừng</span>
+                {% endif %}
+            </td>
+            <td class="text-center">
+                <a href="/accounting/cash-accounts/{{ a.id }}/edit"
+                   class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                <form method="post" action="/accounting/cash-accounts/{{ a.id }}/delete"
+                      class="d-inline"
+                      onsubmit="return confirm('Xóa tài khoản {{ a.name }}?')">
+                    <button class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">
+            Chưa có tài khoản quỹ nào. Bấm "Thêm tài khoản" để bắt đầu.
+        </td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

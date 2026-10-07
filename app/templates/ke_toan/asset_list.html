@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Tài sản cố định{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-building"></i> Tài sản cố định & CCDC</h2>
+    <div>
+        <a href="/accounting/depreciation" class="btn btn-outline-warning">
+            <i class="bi bi-calculator"></i> Chạy khấu hao
+        </a>
+        <a href="/accounting/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Dashboard
+        </a>
+        <a href="/accounting/assets/new" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Thêm tài sản
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- Filter -->
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-3">
+        <label class="form-label small">Loại</label>
+        <select name="asset_type" class="form-select" onchange="this.form.submit()">
+            <option value="">-- Tất cả --</option>
+            <option value="TSCD" {% if filter_type == "TSCD" %}selected{% endif %}>Tài sản cố định</option>
+            <option value="CCDC" {% if filter_type == "CCDC" %}selected{% endif %}>Công cụ dụng cụ</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small">Trạng thái</label>
+        <select name="status" class="form-select" onchange="this.form.submit()">
+            <option value="">-- Tất cả --</option>
+            <option value="ACTIVE" {% if filter_status == "ACTIVE" %}selected{% endif %}>Đang dùng</option>
+            <option value="DISPOSED" {% if filter_status == "DISPOSED" %}selected{% endif %}>Đã thanh lý</option>
+            <option value="LIQUIDATED" {% if filter_status == "LIQUIDATED" %}selected{% endif %}>Đã hủy</option>
+        </select>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        {% if filter_type or filter_status %}
+        <a href="/accounting/assets" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle"></i> Xóa lọc
+        </a>
+        {% endif %}
+    </div>
+</form>
+
+<!-- Tổng kết -->
+{% set active_assets = assets | selectattr('status', 'equalto', 'ACTIVE') | list %}
+{% set total_cost = active_assets | map(attribute='original_cost') | sum %}
+{% set total_dep = active_assets | map(attribute='accumulated_depreciation') | sum %}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <small class="text-muted">Số tài sản đang dùng</small>
+                <h3 class="text-primary">{{ active_assets|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body">
+                <small class="text-muted">Tổng nguyên giá</small>
+                <h3 class="text-success">{{ "{:,.0f}".format(total_cost) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body">
+                <small class="text-muted">Đã khấu hao</small>
+                <h3 class="text-warning">{{ "{:,.0f}".format(total_dep) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body">
+                <small class="text-muted">Giá trị còn lại</small>
+                <h3 class="text-info">{{ "{:,.0f}".format(total_cost - total_dep) }} đ</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Mã</th>
+            <th>Tên tài sản</th>
+            <th>Loại</th>
+            <th>Nơi sử dụng</th>
+            <th class="text-end">Nguyên giá</th>
+            <th class="text-center">%KH/năm</th>
+            <th class="text-end">Đã KH</th>
+            <th class="text-end">Còn lại</th>
+            <th class="text-center">Trạng thái</th>
+            <th class="text-center" style="width: 100px;">Thao tác</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for a in assets %}
+        <tr {% if a.status != "ACTIVE" %}class="table-secondary"{% endif %}>
+            <td><strong>{{ a.code }}</strong></td>
+            <td>
+                <a href="/accounting/assets/{{ a.id }}" class="text-decoration-none">
+                    {{ a.name }}
+                </a>
+                {% if a.quantity > 1 %}<small class="text-muted"> (×{{ a.quantity }} {{ a.unit }})</small>{% endif %}
+            </td>
+            <td>
+                {% if a.asset_type == "TSCD" %}
+                <span class="badge bg-primary">TSCĐ</span>
+                {% else %}
+                <span class="badge bg-info text-dark">CCDC</span>
+                {% endif %}
+            </td>
+            <td><small>{{ a.location or "—" }}</small></td>
+            <td class="text-end">{{ "{:,.0f}".format(a.original_cost) }} đ</td>
+            <td class="text-center">{{ a.depreciation_rate }}%</td>
+            <td class="text-end text-warning">{{ "{:,.0f}".format(a.accumulated_depreciation) }} đ</td>
+            <td class="text-end fw-bold {% if a.original_cost - a.accumulated_depreciation > 0 %}text-success{% else %}text-muted{% endif %}">
+                {{ "{:,.0f}".format(a.original_cost - a.accumulated_depreciation) }} đ
+            </td>
+            <td class="text-center">
+                {% if a.status == "ACTIVE" %}
+                <span class="badge bg-success">Đang dùng</span>
+                {% elif a.status == "DISPOSED" %}
+                <span class="badge bg-warning text-dark">Đã thanh lý</span>
+                {% else %}
+                <span class="badge bg-secondary">Đã hủy</span>
+                {% endif %}
+            </td>
+            <td class="text-center">
+                <a href="/accounting/assets/{{ a.id }}" class="btn btn-sm btn-outline-info">
+                    <i class="bi bi-eye"></i>
+                </a>
+                <a href="/accounting/assets/{{ a.id }}/edit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-pencil"></i>
+                </a>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" class="text-center text-muted py-4">
+            Chưa có tài sản nào. Bấm "Thêm tài sản" để bắt đầu.
+        </td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

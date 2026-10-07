@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}{{ asset.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-building"></i> {{ asset.name }}</h2>
+    <div>
+        <a href="/accounting/assets/{{ asset.id }}/edit" class="btn btn-primary">
+            <i class="bi bi-pencil"></i> Sửa
+        </a>
+        <a href="/accounting/assets" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Quay lại
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger">{{ request.query_params.get('error') }}</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success">{{ request.query_params.get('success') }}</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">Thông tin tài sản</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><th width="35%">Mã tài sản</th><td><strong>{{ asset.code }}</strong></td></tr>
+                    <tr><th>Tên</th><td>{{ asset.name }}</td></tr>
+                    <tr><th>Loại</th>
+                        <td>
+                            {% if asset.asset_type == "TSCD" %}
+                            <span class="badge bg-primary">Tài sản cố định</span>
+                            {% else %}
+                            <span class="badge bg-info text-dark">Công cụ dụng cụ</span>
+                            {% endif %}
+                        </td></tr>
+                    <tr><th>Đơn vị / Số lượng</th><td>{{ asset.unit }} × {{ asset.quantity }}</td></tr>
+                    <tr><th>Nơi sử dụng</th><td>{{ asset.location or "—" }}</td></tr>
+                    <tr><th>Ngày mua</th>
+                        <td>{{ asset.purchase_date.strftime("%d/%m/%Y") if asset.purchase_date else "—" }}</td></tr>
+                    <tr><th>Ngày bắt đầu SD</th>
+                        <td>{{ asset.start_use_date.strftime("%d/%m/%Y") if asset.start_use_date else "—" }}</td></tr>
+                    <tr><th>Trạng thái</th>
+                        <td>
+                            {% if asset.status == "ACTIVE" %}
+                            <span class="badge bg-success">Đang dùng</span>
+                            {% elif asset.status == "DISPOSED" %}
+                            <span class="badge bg-warning text-dark">Đã thanh lý</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Đã hủy</span>
+                            {% endif %}
+                        </td></tr>
+                    {% if asset.note %}
+                    <tr><th>Ghi chú</th><td>{{ asset.note }}</td></tr>
+                    {% endif %}
+                    {% if asset.disposal_date %}
+                    <tr class="table-warning"><th>Ngày thanh lý</th>
+                        <td>{{ asset.disposal_date.strftime("%d/%m/%Y") }}</td></tr>
+                    <tr class="table-warning"><th>Lý do</th><td>{{ asset.disposal_reason }}</td></tr>
+                    <tr class="table-warning"><th>Giá trị thanh lý</th>
+                        <td class="text-success">{{ "{:,.0f}".format(asset.disposal_value) }} đ</td></tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <!-- Lịch sử khấu hao -->
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <i class="bi bi-clock-history"></i> Lịch sử khấu hao ({{ depreciations|length }} kỳ)
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Kỳ</th>
+                            <th class="text-end">Khấu hao kỳ</th>
+                            <th class="text-end">Lũy kế trước</th>
+                            <th class="text-end">Lũy kế sau</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in depreciations %}
+                        <tr>
+                            <td><strong>{{ d.period }}</strong></td>
+                            <td class="text-end text-warning">{{ "{:,.0f}".format(d.depreciation_amount) }} đ</td>
+                            <td class="text-end">{{ "{:,.0f}".format(d.accumulated_before) }} đ</td>
+                            <td class="text-end">{{ "{:,.0f}".format(d.accumulated_after) }} đ</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">
+                            Chưa có khấu hao. Vào <a href="/accounting/depreciation">Chạy khấu hao</a> để tính.
+                        </td></tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if depreciations %}
+                    <tfoot>
+                        <tr>
+                            <td colspan="4" class="text-end p-2 bg-light">
+                                <form method="post" action="/accounting/assets/{{ asset.id }}/reset-depreciation"
+                                      class="d-inline"
+                                      onsubmit="return confirm('⚠️ Xóa TOÀN BỘ khấu hao của tài sản này?\n\nGiá trị còn lại sẽ được khôi phục về nguyên giá.\nSau đó có thể sửa %KH và chạy lại.')">
+                                    <button class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-arrow-counterclockwise"></i> Reset toàn bộ khấu hao
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Tổng quan giá trị -->
+        <div class="card mb-3 border-success">
+            <div class="card-header bg-success text-white">Giá trị tài sản</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <small class="text-muted">Nguyên giá</small>
+                    <h4>{{ "{:,.0f}".format(asset.original_cost) }} đ</h4>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted">Đã khấu hao</small>
+                    <h4 class="text-warning">{{ "{:,.0f}".format(asset.accumulated_depreciation) }} đ</h4>
+                </div>
+                <hr>
+                <div class="mb-2">
+                    <small class="text-muted">Giá trị còn lại</small>
+                    <h3 class="text-success">
+                        {{ "{:,.0f}".format(asset.original_cost - asset.accumulated_depreciation) }} đ
+                    </h3>
+                </div>
+                <div class="mb-0">
+                    <small class="text-muted">Tỷ lệ khấu hao</small>
+                    <strong>{{ asset.depreciation_rate }}%/năm</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Thao tác -->
+        {% if asset.status == "ACTIVE" %}
+        <div class="card mb-3 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <i class="bi bi-box-arrow-right"></i> Ghi giảm tài sản
+            </div>
+            <div class="card-body">
+                <form method="post" action="/accounting/assets/{{ asset.id }}/dispose"
+                      onsubmit="return confirm('Xác nhận thanh lý tài sản này?\nSau khi ghi giảm, không thể hoàn tác.')">
+                    <div class="mb-2">
+                        <label class="form-label small">Ngày thanh lý</label>
+                        <input type="date" name="disposal_date" class="form-control form-control-sm"
+                               required id="disposalDate">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Lý do</label>
+                        <input type="text" name="disposal_reason" class="form-control form-control-sm"
+                               placeholder="VD: Hỏng, thanh lý...">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Giá trị thu hồi</label>
+                        <input type="number" name="disposal_value" class="form-control form-control-sm"
+                               step="1000" value="0">
+                    </div>
+                    <button class="btn btn-warning w-100">
+                        <i class="bi bi-check-circle"></i> Xác nhận thanh lý
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-body">
+                <form method="post" action="/accounting/assets/{{ asset.id }}/delete"
+                      onsubmit="return confirm('Xóa tài sản này?\nChỉ xóa được nếu chưa có khấu hao.')">
+                    <button class="btn btn-outline-danger w-100">
+                        <i class="bi bi-trash"></i> Xóa tài sản
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('disposalDate').valueAsDate = new Date();
+</script>
+{% endblock %}

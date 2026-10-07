@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}{{ "Sửa" if is_edit else "Thêm" }} Nhà cung cấp{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-truck"></i> {{ "Sửa Nhà cung cấp" if is_edit else "Thêm Nhà cung cấp" }}</h2>
+    <a href="/inventory/suppliers" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post"
+              action="{{ '/inventory/suppliers/' + supplier.id|string + '/update' if is_edit else '/inventory/suppliers/create' }}">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Mã NCC <span class="text-danger">*</span></label>
+                    <input type="text" name="code" class="form-control" required
+                           value="{{ supplier.code if supplier else '' }}">
+                </div>
+                <div class="col-md-9">
+                    <label class="form-label">Tên NCC <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" required
+                           value="{{ supplier.name if supplier else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Điện thoại</label>
+                    <input type="text" name="phone" class="form-control"
+                           value="{{ supplier.phone if supplier else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control"
+                           value="{{ supplier.email if supplier else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Mã số thuế</label>
+                    <input type="text" name="tax_code" class="form-control"
+                           value="{{ supplier.tax_code if supplier else '' }}">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Địa chỉ</label>
+                    <input type="text" name="address" class="form-control"
+                           value="{{ supplier.address if supplier else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Số ngày được nợ</label>
+                    <input type="number" name="payment_term_days" class="form-control"
+                           min="0" value="{{ supplier.payment_term_days if supplier else 30 }}">
+                    <small class="text-muted">VD: 30 (nợ trong 30 ngày)</small>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Ghi chú</label>
+                    <textarea name="note" class="form-control" rows="3">{{ supplier.note if supplier else '' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Ghi chú</label>
+                    <textarea name="note" class="form-control" rows="3">{{ supplier.note if supplier else '' }}</textarea>
+                </div>
+            </div>
+            <hr>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save"></i> {{ "Cập nhật" if is_edit else "Thêm mới" }}
+            </button>
+            <a href="/inventory/suppliers" class="btn btn-secondary">Hủy</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

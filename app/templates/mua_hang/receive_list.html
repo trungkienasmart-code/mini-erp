@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Lịch sử Nhập kho{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-box-arrow-in-down"></i> Lịch sử Nhập kho</h2>
+    <div>
+        <a href="/purchase/receives/export" class="btn btn-outline-success">
+            <i class="bi bi-file-earmark-excel"></i> Xuất CSV
+        </a>
+        <a href="/purchase/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Dashboard
+        </a>
+        <a href="/purchase/receives/new" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Nhập kho mới
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger">{{ request.query_params.get('error') }}</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success">{{ request.query_params.get('success') }}</div>
+{% endif %}
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Mã đơn nhập</th>
+            <th>Ngày nhập</th>
+            <th>Nhà cung cấp</th>
+            <th class="text-end">Tổng tiền</th>
+            <th>Số HĐ NCC</th>
+            <th>Đến hạn TT</th>
+            <th class="text-center">Trạng thái</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for o in orders %}
+        <tr>
+            <td>
+                <a href="/purchase/orders/{{ o.id }}" class="text-decoration-none">
+                    <strong>{{ o.code }}</strong>
+                </a>
+            </td>
+            <td><small>{{ o.created_at.strftime("%d/%m/%y %H:%M") }}</small></td>
+            <td>{{ supplier_dict.get(o.supplier_id, "N/A") }}</td>
+            <td class="text-end fw-bold">{{ "{:,.0f}".format(o.total_amount) }} đ</td>
+            <td><small>{{ o.supplier_invoice_no or "—" }}</small></td>
+            <td>
+                {% if o.due_date %}
+                    {% set days_left = (o.due_date - o.created_at.date()).days %}
+                    <small>{{ o.due_date.strftime("%d/%m/%y") }}</small>
+                {% else %}—{% endif %}
+            </td>
+            <td class="text-center">
+                {% if o.status == "RECEIVED" %}
+                <span class="badge bg-primary">Đã nhận</span>
+                {% elif o.status == "PARTIAL" %}
+                <span class="badge bg-warning text-dark">Trả 1 phần</span>
+                {% elif o.status == "PAID" %}
+                <span class="badge bg-success">Đã TT</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="/purchase/orders/{{ o.id }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye"></i>
+                </a>
+                <a href="/purchase/orders/{{ o.id }}/print-receipt" target="_blank"
+                   class="btn btn-sm btn-outline-dark">
+                    <i class="bi bi-receipt"></i>
+                </a>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">
+            Chưa có phiếu nhập kho nào
+        </td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

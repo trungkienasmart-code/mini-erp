@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Khóa kỳ kế toán{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-lock"></i> Khóa kỳ kế toán</h2>
+    <a href="/accounting/" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Dashboard
+    </a>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger">{{ request.query_params.get('error') }}</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success">{{ request.query_params.get('success') }}</div>
+{% endif %}
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    <strong>Lưu ý:</strong> Khóa kỳ để chặn tạo/sửa/xóa phiếu thu/chi ở tháng đó. Chỉ nên khóa khi đã kiểm tra kỹ sổ sách.
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-lock-fill"></i> Khóa kỳ mới
+            </div>
+            <div class="card-body">
+                <form method="post" action="/accounting/periods/lock">
+                    <div class="mb-3">
+                        <label class="form-label">Chọn kỳ (YYYY-MM)</label>
+                        <input type="month" name="period" class="form-control" required>
+                        <small class="text-muted">VD: 2026-10</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ghi chú</label>
+                        <input type="text" name="note" class="form-control"
+                               placeholder="VD: Chốt sổ tháng 10/2026">
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100"
+                            onclick="return confirm('Khóa kỳ này? Sau khi khóa, không thể tạo/sửa phiếu trong kỳ.')">
+                        <i class="bi bi-lock"></i> Khóa kỳ
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <i class="bi bi-list"></i> Các kỳ đã thao tác
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Kỳ</th>
+                            <th>Trạng thái</th>
+                            <th>Khóa lúc</th>
+                            <th>Ghi chú</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for l in locks %}
+                        <tr>
+                            <td><strong>{{ l.period }}</strong></td>
+                            <td>
+                                {% if l.status == "CLOSED" %}
+                                <span class="badge bg-danger"><i class="bi bi-lock-fill"></i> Đã khóa</span>
+                                {% else %}
+                                <span class="badge bg-success">Mở</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ l.closed_at.strftime("%d/%m/%Y %H:%M") if l.closed_at else "—" }}</small>
+                            </td>
+                            <td><small>{{ l.note or "—" }}</small></td>
+                            <td>
+                                {% if l.status == "CLOSED" %}
+                                <form method="post" action="/accounting/periods/{{ l.period }}/unlock"
+                                      class="d-inline"
+                                      onsubmit="return confirm('Mở khóa kỳ {{ l.period }}? Có thể tạo/sửa phiếu trở lại.')">
+                                    <button class="btn btn-sm btn-outline-warning">
+                                        <i class="bi bi-unlock"></i> Mở khóa
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">
+                            Chưa có kỳ nào bị khóa
+                        </td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Nhà cung cấp{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-truck"></i> Nhà cung cấp</h2>
+    <div>
+        <a href="/inventory/products" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Sản phẩm
+        </a>
+        <a href="/inventory/suppliers/new" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Thêm NCC
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    <i class="bi bi-exclamation-triangle"></i> {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    <i class="bi bi-check-circle"></i> {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Mã</th>
+            <th>Tên NCC</th>
+            <th>Điện thoại</th>
+            <th>Email</th>
+            <th>Mã số thuế</th>
+            <th class="text-center" style="width: 140px;">Thao tác</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for sup in suppliers %}
+        <tr>
+            <td><strong>{{ sup.code }}</strong></td>
+            <td>{{ sup.name }}</td>
+            <td>{{ sup.phone or "—" }}</td>
+            <td>{{ sup.email or "—" }}</td>
+            <td>{{ sup.tax_code or "—" }}</td>
+            <td class="text-center">
+                <a href="/inventory/suppliers/{{ sup.id }}/edit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                <form method="post" action="/inventory/suppliers/{{ sup.id }}/delete"
+                      class="d-inline" onsubmit="return confirm('Xóa NCC {{ sup.name }}?')">
+                    <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-4">
+            Chưa có nhà cung cấp nào. Bấm "Thêm NCC" để bắt đầu.
+        </td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

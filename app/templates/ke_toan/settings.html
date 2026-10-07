@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Cấu hình HKD{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-gear"></i> Cấu hình Hộ Kinh Doanh</h2>
+    <div>
+        <a href="/accounting/periods" class="btn btn-outline-secondary">
+            <i class="bi bi-lock"></i> Khóa kỳ
+        </a>
+        <a href="/accounting/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Dashboard
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger">{{ request.query_params.get('error') }}</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success">{{ request.query_params.get('success') }}</div>
+{% endif %}
+
+<form method="post" action="/accounting/settings">
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Thông tin HKD -->
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">Thông tin Hộ Kinh Doanh</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Tên HKD <span class="text-danger">*</span></label>
+                            <input type="text" name="business_name" class="form-control" required
+                                   value="{{ profile.business_name if profile else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Mã số thuế</label>
+                            <input type="text" name="tax_code" class="form-control"
+                                   value="{{ profile.tax_code if profile else '' }}">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Địa chỉ</label>
+                            <input type="text" name="address" class="form-control"
+                                   value="{{ profile.address if profile else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Điện thoại</label>
+                            <input type="text" name="phone" class="form-control"
+                                   value="{{ profile.phone if profile else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control"
+                                   value="{{ profile.email if profile else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Ngày bắt đầu năm tài chính</label>
+                            <input type="text" name="fiscal_year_start" class="form-control"
+                                   placeholder="MM-DD"
+                                   value="{{ profile.fiscal_year_start if profile else '01-01' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nhóm thuế -->
+            <div class="card mb-3">
+                <div class="card-header bg-success text-white">Nhóm thuế theo TT152/2025/TT-BTC</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Chọn nhóm HKD</label>
+                        <div class="form-check">
+                            <input type="radio" name="hkd_group" value="1" class="form-check-input"
+                                   id="g1" {% if not profile or profile.hkd_group == 1 %}checked{% endif %}>
+                            <label class="form-check-label" for="g1">
+                                <strong>Nhóm 1</strong> — Doanh thu &lt; 500 triệu/năm
+                                <br><small class="text-muted">Không chịu thuế GTGT, không nộp TNCN. Dùng sổ S1a-HKD.</small>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input type="radio" name="hkd_group" value="2" class="form-check-input"
+                                   id="g2" {% if profile and profile.hkd_group == 2 %}checked{% endif %}>
+                            <label class="form-check-label" for="g2">
+                                <strong>Nhóm 2</strong> — Doanh thu ≥ 500 triệu/năm
+                                <br><small class="text-muted">Nộp GTGT + TNCN theo tỷ lệ % trên doanh thu. Dùng sổ S2a-HKD.</small>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input type="radio" name="hkd_group" value="3" class="form-check-input"
+                                   id="g3" {% if profile and profile.hkd_group == 3 %}checked{% endif %}>
+                            <label class="form-check-label" for="g3">
+                                <strong>Nhóm 3</strong> — GTGT theo % DT + TNCN trên thu nhập tính thuế
+                                <br><small class="text-muted">Dùng 4 sổ: S2b, S2c, S2d, S2e.</small>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input type="radio" name="hkd_group" value="4" class="form-check-input"
+                                   id="g4" {% if profile and profile.hkd_group == 4 %}checked{% endif %}>
+                            <label class="form-check-label" for="g4">
+                                <strong>Nhóm 4</strong> — Có hoạt động chịu thuế khác (XNK, TTĐB, TN, BVMT)
+                                <br><small class="text-muted">Dùng thêm sổ S3a-HKD.</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Thuế GTGT bán lẻ (%)</label>
+                            <input type="number" name="vat_rate_retail" class="form-control" step="0.1" min="0"
+                                   value="{{ profile.vat_rate_retail if profile else 1.0 }}">
+                            <small class="text-muted">VD: bán lẻ 1%, ăn uống 3%</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Thuế GTGT dịch vụ (%)</label>
+                            <input type="number" name="vat_rate_service" class="form-control" step="0.1" min="0"
+                                   value="{{ profile.vat_rate_service if profile else 5.0 }}">
+                            <small class="text-muted">VD: dịch vụ 5%</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Thuế TNCN (%)</label>
+                            <input type="number" name="tncn_rate" class="form-control" step="0.1" min="0"
+                                   value="{{ profile.tncn_rate if profile else 0.5 }}">
+                            <small class="text-muted">VD: 0.5%, 2%</small>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                <input type="checkbox" name="has_other_taxes" value="true"
+                                       class="form-check-input" id="other_tax"
+                                       {% if profile and profile.has_other_taxes %}checked{% endif %}>
+                                <label class="form-check-label" for="other_tax">
+                                    Có hoạt động chịu thuế khác (XNK, TTĐB, TN, BVMT...)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ghi chú -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <label class="form-label">Ghi chú</label>
+                    <textarea name="note" class="form-control" rows="2">{{ profile.note if profile else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Số dư đầu kỳ -->
+            <div class="card mb-3 sticky-top" style="top: 70px;">
+                <div class="card-header bg-warning text-dark">Số dư đầu kỳ</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Tiền mặt đầu kỳ</label>
+                        <input type="number" name="opening_cash" class="form-control" step="1000"
+                               value="{{ profile.opening_cash if profile else 0 }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tiền ngân hàng đầu kỳ</label>
+                        <input type="number" name="opening_bank" class="form-control" step="1000"
+                               value="{{ profile.opening_bank if profile else 0 }}">
+                    </div>
+                    <div class="alert alert-info small mb-0">
+                        <i class="bi bi-info-circle"></i>
+                        Số dư đầu kỳ dùng để tính số dư hiện tại của các tài khoản quỹ.
+                        Chỉ nhập 1 lần khi bắt đầu dùng phần mềm.
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-save"></i> Lưu cấu hình
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

@@ -1,13 +1,9 @@
 {% extends "base.html" %}
-
 {% block title %}{{ "Sửa" if is_edit else "Thêm" }} Sản phẩm{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>
-        <i class="bi bi-box-seam"></i>
-        {{ "Sửa Sản phẩm" if is_edit else "Thêm Sản phẩm mới" }}
-    </h2>
+    <h2><i class="bi bi-box-seam"></i> {{ "Sửa Sản phẩm" if is_edit else "Thêm Sản phẩm mới" }}</h2>
     <a href="/inventory/products" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Quay lại
     </a>
@@ -17,7 +13,8 @@
     <div class="card-body">
         <form method="post"
               action="{{ '/inventory/products/' + product.id|string + '/update' if is_edit else '/inventory/products/create' }}">
-            <div class="row g-3">
+            <h5 class="text-primary border-bottom pb-2">Thông tin cơ bản</h5>
+            <div class="row g-3 mb-4">
                 <div class="col-md-4">
                     <label class="form-label">Mã SKU <span class="text-danger">*</span></label>
                     <input type="text" name="sku" class="form-control" required
@@ -29,21 +26,13 @@
                            value="{{ product.name if product else '' }}">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Đơn vị tính</label>
+                    <label class="form-label">Đơn vị tồn kho</label>
                     <input type="text" name="unit" class="form-control"
+                           placeholder="Lon, Cái, Chiếc..."
                            value="{{ product.unit if product else 'Cái' }}">
+                    <small class="text-muted">Đơn vị nhỏ nhất để tracking tồn kho</small>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Giá nhập (VNĐ)</label>
-                    <input type="number" name="cost_price" class="form-control" step="100"
-                           value="{{ product.cost_price if product else 0 }}">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Giá bán (VNĐ)</label>
-                    <input type="number" name="price" class="form-control" step="100"
-                           value="{{ product.price if product else 0 }}">
-                </div>
-                <div class="col-md-6">
                     <label class="form-label">Danh mục</label>
                     <select name="category_id" class="form-select">
                         <option value="">-- Chưa phân loại --</option>
@@ -55,8 +44,63 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="col-md-4">
+                    <label class="form-label">Nhà cung cấp</label>
+                    <select name="supplier_id" class="form-select">
+                        <option value="">-- Chưa chọn --</option>
+                        {% for sup in suppliers %}
+                        <option value="{{ sup.id }}"
+                                {% if product and product.supplier_id == sup.id %}selected{% endif %}>
+                            {{ sup.code }} - {{ sup.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
-            <hr class="my-4">
+
+            <h5 class="text-primary border-bottom pb-2">Giá & Thuế</h5>
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <label class="form-label">Giá nhập (VNĐ)</label>
+                    <input type="number" name="cost_price" class="form-control" step="100"
+                           value="{{ product.cost_price if product else 0 }}">
+                    <small class="text-muted">Giá nhập gần nhất</small>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Giá bán lẻ (VNĐ)</label>
+                    <input type="number" name="price" class="form-control" step="100"
+                           value="{{ product.price if product else 0 }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Thuế VAT (%)</label>
+                    <input type="number" name="tax_rate" class="form-control" step="0.1" min="0" max="100"
+                           value="{{ product.tax_rate if product else 0 }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Tồn kho tối thiểu</label>
+                    <input type="number" name="min_stock" class="form-control" min="0"
+                           value="{{ product.min_stock if product else 0 }}">
+                    <small class="text-muted">Cảnh báo khi tồn ≤ mức này</small>
+                </div>
+            </div>
+
+            <h5 class="text-primary border-bottom pb-2">Phương pháp tính giá vốn</h5>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <select name="cost_method" class="form-select">
+                        <option value="FIFO"
+                                {% if not product or product.cost_method == "FIFO" %}selected{% endif %}>
+                            FIFO — Nhập trước, xuất trước
+                        </option>
+                        <option value="LIFO"
+                                {% if product and product.cost_method == "LIFO" %}selected{% endif %}>
+                            LIFO — Nhập sau, xuất trước
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+            <hr>
             <button type="submit" class="btn btn-primary">
                 <i class="bi bi-save"></i> {{ "Cập nhật" if is_edit else "Thêm mới" }}
             </button>

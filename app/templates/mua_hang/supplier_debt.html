@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Công nợ NCC{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-cash-coin"></i> Công nợ Nhà cung cấp</h2>
+    <a href="/purchase/" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Dashboard
+    </a>
+</div>
+
+<!-- Tổng nợ -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-body">
+                <small class="text-muted">Tổng công nợ phải trả</small>
+                <h2 class="text-danger">{{ "{:,.0f}".format(total) }} đ</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-warning">
+            <div class="card-body">
+                <small class="text-muted">Số NCC đang nợ</small>
+                <h2 class="text-warning">{{ debts|length }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Đơn quá hạn -->
+{% if overdue %}
+<div class="card mb-4 border-danger">
+    <div class="card-header bg-danger text-white">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <strong>{{ overdue|length }} đơn quá hạn thanh toán</strong>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Mã đơn</th>
+                    <th>NCC</th>
+                    <th>Ngày nhập</th>
+                    <th>Đến hạn</th>
+                    <th class="text-center">Quá hạn</th>
+                    <th class="text-end">Còn nợ</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in overdue %}
+                <tr>
+                    <td>
+                        <a href="/purchase/orders/{{ item.order.id }}" class="text-decoration-none">
+                            <strong>{{ item.order.code }}</strong>
+                        </a>
+                    </td>
+                    <td>{{ item.supplier.name if item.supplier else "N/A" }}</td>
+                    <td><small>{{ item.order.created_at.strftime("%d/%m/%y") }}</small></td>
+                    <td class="text-danger">{{ item.order.due_date.strftime("%d/%m/%y") }}</td>
+                    <td class="text-center">
+                        <span class="badge bg-danger">{{ item.days_overdue }} ngày</span>
+                    </td>
+                    <td class="text-end fw-bold text-danger">
+                        {{ "{:,.0f}".format(item.order.total_amount - item.order.paid_amount) }} đ
+                    </td>
+                    <td>
+                        <a href="/purchase/orders/{{ item.order.id }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Danh sách NCC có nợ -->
+<div class="card">
+    <div class="card-header bg-secondary text-white">
+        <i class="bi bi-people"></i> Danh sách NCC có công nợ
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Mã NCC</th>
+                    <th>Tên NCC</th>
+                    <th>Điện thoại</th>
+                    <th class="text-center">Số ngày nợ</th>
+                    <th class="text-center">Đơn chưa TT</th>
+                    <th class="text-end">Công nợ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in debts %}
+                <tr>
+                    <td><strong>{{ d.supplier.code }}</strong></td>
+                    <td>{{ d.supplier.name }}</td>
+                    <td>{{ d.supplier.phone or "—" }}</td>
+                    <td class="text-center">
+                        <span class="badge bg-info">{{ d.supplier.payment_term_days }} ngày</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-warning text-dark">{{ d.unpaid_count }}</span>
+                    </td>
+                    <td class="text-end fw-bold text-danger">
+                        {{ "{:,.0f}".format(d.current_debt) }} đ
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">
+                    Không có NCC nào đang nợ. 🎉
+                </td></tr>
+                {% endfor %}
+            </tbody>
+            {% if debts %}
+            <tfoot>
+                <tr class="table-warning">
+                    <th colspan="5" class="text-end">TỔNG CỘNG:</th>
+                    <th class="text-end fs-5">{{ "{:,.0f}".format(total) }} đ</th>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>
+{% endblock %}

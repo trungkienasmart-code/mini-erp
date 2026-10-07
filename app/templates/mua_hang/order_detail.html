@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% block title %}Đơn mua {{ order.code }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-file-text"></i> Đơn mua {{ order.code }}</h2>
+    <div>
+        <a href="/purchase/orders/{{ order.id }}/print" target="_blank"
+           class="btn btn-outline-dark">
+            <i class="bi bi-printer"></i> In đơn đặt
+        </a>
+        {% if order.status in ["RECEIVED", "PAID", "PARTIAL"] %}
+        <a href="/purchase/orders/{{ order.id }}/print-receipt" target="_blank"
+           class="btn btn-outline-dark">
+            <i class="bi bi-receipt"></i> In phiếu nhập
+        </a>
+        {% endif %}
+        <a href="/purchase/orders" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Quay lại
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger">{{ request.query_params.get('error') }}</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success">{{ request.query_params.get('success') }}</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Thông tin đơn -->
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">Thông tin đơn</div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr><th width="30%">Mã đơn</th><td><strong>{{ order.code }}</strong></td></tr>
+                    <tr><th>Ngày tạo</th><td>{{ order.created_at.strftime("%d/%m/%Y %H:%M") }}</td></tr>
+                    <tr><th>Nhà cung cấp</th>
+                        <td>{{ supplier.name if supplier else "N/A" }}
+                            {% if supplier and supplier.phone %} — {{ supplier.phone }}{% endif %}
+                        </td></tr>
+                    <tr><th>Trạng thái</th>
+                        <td>
+                            {% if order.status == "DRAFT" %}
+                            <span class="badge bg-secondary">Nháp</span>
+                            {% elif order.status == "APPROVED" %}
+                            <span class="badge bg-info">Đã duyệt</span>
+                            {% elif order.status == "RECEIVED" %}
+                            <span class="badge bg-primary">Đã nhận hàng</span>
+                            {% elif order.status == "PARTIAL" %}
+                            <span class="badge bg-warning text-dark">Thanh toán 1 phần</span>
+                            {% elif order.status == "PAID" %}
+                            <span class="badge bg-success">Đã thanh toán</span>
+                            {% elif order.status == "CANCELLED" %}
+                            <span class="badge bg-dark">Đã hủy</span>
+                            {% endif %}
+                        </td></tr>
+                    {% if order.supplier_invoice_no %}
+                    <tr><th>Số HĐ NCC</th><td><strong>{{ order.supplier_invoice_no }}</strong>
+                        {% if order.supplier_invoice_date %} — {{ order.supplier_invoice_date.strftime("%d/%m/%Y") }}{% endif %}
+                    </td></tr>
+                    {% endif %}
+                    {% if order.due_date %}
+                    <tr><th>Đến hạn TT</th>
+                        <td>{{ order.due_date.strftime("%d/%m/%Y") }}</td></tr>
+                    {% endif %}
+                    {% if order.email_sent_at %}
+                    <tr><th>Đã gửi email</th>
+                        <td>{{ order.email_sent_at.strftime("%d/%m/%Y %H:%M") }}
+                            → {{ order.email_sent_to or "(không rõ)" }}</td></tr>
+                    {% endif %}
+                    {% if order.note %}
+                    <tr><th>Ghi chú</th><td>{{ order.note }}</td></tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        <!-- Chi tiết hàng -->
+        <div class="card mb-3">
+            <div class="card-header bg-secondary text-white">Chi tiết hàng hóa</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                   <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Mã hàng</th>
+                            <th>Tên sản phẩm</th>
+                            <th class="text-end">SL đặt</th>
+                            <th class="text-end">SL nhận</th>
+                            <th class="text-end">Đơn giá</th>
+                            <th class="text-end">VAT</th>
+                            <th class="text-end">Thành tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for l in lines %}
+                                                <tr>
+                            <td>{{ loop.index }}</td>
+                            <td><strong>{{ product_dict[l.product_id].sku if product_dict.get(l.product_id) else "N/A" }}</strong></td>
+                            <td>{{ product_dict[l.product_id].name if product_dict.get(l.product_id) else "" }}</td>
+                            <td class="text-end">{{ l.quantity }}</td>
+                            <td class="text-end">
+                                {% if l.received_quantity > 0 %}
+                                <strong class="text-success">{{ l.received_quantity }}</strong>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td class="text-end">{{ "{:,.0f}".format(l.unit_price) }}</td>
+                            <td class="text-end">{{ l.tax_rate }}%</td>
+                            <td class="text-end fw-bold">{{ "{:,.0f}".format(l.line_total) }} đ</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Lịch sử thanh toán -->
+        {% if payments %}
+        <div class="card">
+            <div class="card-header bg-info text-white">Lịch sử thanh toán</div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Ngày</th>
+                            <th>Phương thức</th>
+                            <th>Ghi chú</th>
+                            <th class="text-end">Số tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in payments %}
+                        <tr>
+                            <td><small>{{ p.created_at.strftime("%d/%m/%y %H:%M") }}</small></td>
+                            <td>
+                                {% if p.payment_method == "CASH" %}💵 Tiền mặt
+                                {% elif p.payment_method == "BANK" %}🏦 CK
+                                {% elif p.payment_method == "CARD" %}💳 Thẻ
+                                {% endif %}
+                            </td>
+                            <td><small>{{ p.note }}</small></td>
+                            <td class="text-end fw-bold text-success">
+                                +{{ "{:,.0f}".format(p.amount) }} đ
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Cột phải: Tổng kết + Actions -->
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header bg-success text-white">Tổng kết</div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Tạm tính:</span>
+                    <strong>{{ "{:,.0f}".format(order.subtotal) }} đ</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>VAT:</span>
+                    <strong>{{ "{:,.0f}".format(order.tax_amount) }} đ</strong>
+                </div>
+                {% if order.discount_amount > 0 %}
+                <div class="d-flex justify-content-between mb-2 text-warning">
+                    <span>Chiết khấu NCC:</span>
+                    <strong>-{{ "{:,.0f}".format(order.discount_amount) }} đ</strong>
+                </div>
+                {% endif %}
+                <hr>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="fs-5">TỔNG:</span>
+                    <strong class="fs-4 text-danger">{{ "{:,.0f}".format(order.total_amount) }} đ</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Đã trả:</span>
+                    <strong class="text-success">{{ "{:,.0f}".format(order.paid_amount) }} đ</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Còn lại:</span>
+                    <strong class="text-danger">
+                        {{ "{:,.0f}".format(order.total_amount - order.paid_amount) }} đ
+                    </strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions theo trạng thái -->
+        {% if order.status == "DRAFT" %}
+        <div class="card mb-3">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-lightning"></i> Thao tác
+            </div>
+            <div class="card-body">
+                <form method="post" action="/purchase/orders/{{ order.id }}/approve"
+                      class="mb-2">
+                    <button class="btn btn-success w-100">
+                        <i class="bi bi-check-circle"></i> Duyệt đơn
+                    </button>
+                </form>
+                <form method="post" action="/purchase/orders/{{ order.id }}/cancel"
+                      onsubmit="return confirm('Hủy đơn này?')">
+                    <button class="btn btn-outline-danger w-100">
+                        <i class="bi bi-x-circle"></i> Hủy đơn
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if order.status == "APPROVED" %}
+        <div class="card mb-3">
+            <div class="card-header bg-warning text-dark">
+                <i class="bi bi-lightning"></i> Thao tác
+            </div>
+            <div class="card-body">
+                <a href="/purchase/receives/new?order_id={{ order.id }}"
+                   class="btn btn-primary w-100 mb-2">
+                    <i class="bi bi-box-arrow-in-down"></i> Nhận hàng & Nhập kho
+                </a>
+                <form method="post" action="/purchase/orders/{{ order.id }}/email-sent"
+                      class="mb-2">
+                    <div class="input-group input-group-sm mb-1">
+                        <input type="email" name="email_to" class="form-control"
+                               placeholder="Email NCC"
+                               value="{{ supplier.email if supplier else '' }}">
+                        <button class="btn btn-outline-primary">
+                            <i class="bi bi-envelope"></i> Đánh dấu đã gửi
+                        </button>
+                    </div>
+                </form>
+                <form method="post" action="/purchase/orders/{{ order.id }}/cancel"
+                      onsubmit="return confirm('Hủy đơn này?')">
+                    <button class="btn btn-outline-danger w-100 btn-sm">
+                        <i class="bi bi-x-circle"></i> Hủy đơn
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+               {% if order.status in ["RECEIVED", "PARTIAL"] %}
+        <div class="card mb-3">
+            <div class="card-header bg-warning text-dark">Ghi nhận thanh toán</div>
+            <div class="card-body">
+                <form method="post" action="/purchase/orders/{{ order.id }}/payment">
+                    <div class="mb-2">
+                        <label class="form-label">Số tiền</label>
+                        <input type="number" name="amount" class="form-control" required
+                               step="1000"
+                               value="{{ (order.total_amount - order.paid_amount) | int }}">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Phương thức</label>
+                        <select name="payment_method" class="form-select">
+                            <option value="CASH">💵 Tiền mặt</option>
+                            <option value="BANK">🏦 Chuyển khoản</option>
+                            <option value="CARD">💳 Thẻ</option>
+                        </select>
+                    </div>
+                        <div class="mb-2">
+                        <label class="form-label">Chi từ quỹ</label>
+                        <select name="cash_account_id" class="form-select" id="cashAccountSelect">
+                            <option value="">-- Không sinh phiếu chi --</option>
+                            {% for a in cash_accounts %}
+                            <option value="{{ a.id }}" data-type="{{ a.account_type }}">
+                                {{ a.code }} - {{ a.name }} ({% if a.account_type == 'CASH' %}Tiền mặt{% else %}NH{% endif %})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Chọn quỹ để tự sinh phiếu chi</small>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Mã giao dịch</label>
+                        <input type="text" name="bank_transaction_code" class="form-control">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Ghi chú</label>
+                        <input type="text" name="note" class="form-control">
+                    </div>
+                    <button class="btn btn-success w-100">
+                        <i class="bi bi-check-circle"></i> Ghi nhận
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Tự động chọn quỹ theo phương thức thanh toán
+document.addEventListener('DOMContentLoaded', function() {
+    const methodSelect = document.querySelector('select[name="payment_method"]');
+    const accSelect = document.getElementById('cashAccountSelect');
+    if (!methodSelect || !accSelect) return;
+
+    function autoSelect() {
+        const method = methodSelect.value;
+        const wantType = method === 'BANK' ? 'BANK' : 'CASH';
+
+        // Reset về mặc định (không chọn)
+        accSelect.value = '';
+
+        // Tìm option đúng loại
+        for (let opt of accSelect.options) {
+            if (opt.dataset.type === wantType) {
+                accSelect.value = opt.value;
+                break;
+            }
+        }
+    }
+
+    methodSelect.addEventListener('change', autoSelect);
+    autoSelect();  // Chạy lần đầu
+});
+
+</script>
+{% endblock %}

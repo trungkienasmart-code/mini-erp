@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Sổ S3a-HKD{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <h2><i class="bi bi-journal-text"></i> Sổ S3a-HKD — Nghĩa vụ thuế khác</h2>
+    <div>
+        <button onclick="window.print()" class="btn btn-outline-dark">
+            <i class="bi bi-printer"></i> In
+        </button>
+        <a href="/accounting/reports" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Quay lại
+        </a>
+    </div>
+</div>
+
+<form method="get" class="row g-2 mb-3 no-print">
+    <div class="col-md-3">
+        <label class="form-label small">Từ ngày</label>
+        <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small">Đến ngày</label>
+        <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-primary me-2"><i class="bi bi-search"></i> Xem</button>
+        <a href="/accounting/reports/s3a" class="btn btn-outline-secondary">Hôm nay</a>
+    </div>
+</form>
+
+<div class="alert alert-info no-print">
+    <i class="bi bi-info-circle"></i>
+    <strong>Lưu ý:</strong> Sổ này hiển thị các phiếu chi có <strong>khoản mục = "THUE"</strong>.
+    Dùng để theo dõi nghĩa vụ thuế khác (XNK, TTĐB, TN, BVMT).
+</div>
+
+<!-- Tổng kết -->
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card border-danger">
+            <div class="card-body">
+                <small class="text-muted">Tổng thuế đã nộp trong kỳ</small>
+                <h3 class="text-danger">{{ "{:,.0f}".format(total) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-primary">
+            <div class="card-body">
+                <small class="text-muted">Số phiếu chi thuế</small>
+                <h3 class="text-primary">{{ vouchers|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-info">
+            <div class="card-body">
+                <small class="text-muted">Hướng dẫn ghi nhận</small>
+                <p class="small mb-0 mt-1">
+                    Vào <a href="/accounting/vouchers/new?voucher_type=PAYMENT">Phiếu chi</a> →
+                    chọn khoản mục <strong>THUE</strong>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="print-area">
+    <div class="text-center mb-3">
+        <div class="fw-bold">{{ profile.business_name if profile else 'HỘ KINH DOANH' }}</div>
+        {% if profile and profile.tax_code %}<div>Mã số thuế: {{ profile.tax_code }}</div>{% endif %}
+    </div>
+
+    <div class="text-center mb-3">
+        <h4>SỔ THEO DÕI NGHĨA VỤ THUẾ KHÁC</h4>
+        <div><em>(Mẫu số S3a-HKD)</em></div>
+        <div class="mt-2">Từ ngày {{ date_from }} đến ngày {{ date_to }}</div>
+        <div class="small">Đơn vị tính: đồng</div>
+    </div>
+
+    <table class="table table-bordered table-sm">
+        <thead class="table-light text-center">
+            <tr>
+                <th style="width: 80px;">Ngày</th>
+                <th style="width: 90px;">Số hiệu</th>
+                <th>Diễn giải</th>
+                <th>Đối tượng</th>
+                <th style="width: 120px;">Số tiền</th>
+                <th>Ghi chú</th>
+            </tr>
+            <tr class="text-center fst-italic small">
+                <td>(1)</td><td>(2)</td><td>(3)</td><td>(4)</td><td>(5)</td><td>(6)</td>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in vouchers %}
+            <tr>
+                <td class="text-center"><small>{{ v.voucher_date.strftime("%d/%m/%Y") }}</small></td>
+                <td class="text-center"><small>{{ v.code }}</small></td>
+                <td>{{ v.reason }}</td>
+                <td>
+                    {% if v.partner_name %}
+                    {{ v.partner_name }}
+                    <small class="text-muted">
+                        ({% if v.partner_type == "CUSTOMER" %}KH
+                        {% elif v.partner_type == "SUPPLIER" %}NCC
+                        {% elif v.partner_type == "EMPLOYEE" %}NV
+                        {% else %}Khác{% endif %})
+                    </small>
+                    {% else %}—{% endif %}
+                </td>
+                <td class="text-end fw-bold text-danger">{{ "{:,.0f}".format(v.amount) }}</td>
+                <td><small>{{ v.note }}</small></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-3">
+                Không có khoản thuế khác phát sinh trong kỳ
+            </td></tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="table-warning fw-bold">
+                <td colspan="4" class="text-end">TỔNG CỘNG:</td>
+                <td class="text-end">{{ "{:,.0f}".format(total) }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="small mt-2">
+        <em>- Sổ này theo dõi các khoản thuế khác ngoài thuế GTGT, TNCN như: thuế xuất nhập khẩu,
+        thuế tiêu thụ đặc biệt, thuế tài nguyên, thuế bảo vệ môi trường...</em>
+        <br><em>- Số liệu lấy từ các phiếu chi có chọn khoản mục "THUE".</em>
+    </div>
+
+    <div class="row mt-5">
+        <div class="col-6 text-center">
+            <strong>Người đại diện HKD</strong>
+            <div class="small">(Ký, họ tên, đóng dấu)</div>
+            <div style="height: 60px;"></div>
+        </div>
+        <div class="col-6 text-center">
+            <strong>Ngày ... tháng ... năm ...</strong>
+            <div class="small">Người lập sổ</div>
+            <div style="height: 60px;"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .no-print, nav, .navbar, .sidebar { display: none !important; }
+    body { font-size: 12px; }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Trả hàng{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-arrow-return-left"></i> Phiếu trả hàng</h2>
+    <div>
+        <a href="/sales/" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Bán hàng
+        </a>
+        <a href="/sales/returns/new" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Tạo phiếu trả
+        </a>
+    </div>
+</div>
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Mã phiếu</th>
+            <th>Ngày</th>
+            <th>Đơn gốc</th>
+            <th>Lý do</th>
+            <th class="text-end">Số tiền hoàn</th>
+            <th class="text-center">Trạng thái</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in returns %}
+        <tr>
+            <td><strong>{{ r.code }}</strong></td>
+            <td><small>{{ r.created_at.strftime("%d/%m/%y %H:%M") }}</small></td>
+            <td>{% if r.original_order_id %}#{{ r.original_order_id }}{% else %}—{% endif %}</td>
+            <td><small>{{ r.reason or "—" }}</small></td>
+            <td class="text-end text-danger fw-bold">
+                -{{ "{:,.0f}".format(r.total_amount) }} đ
+            </td>
+            <td class="text-center">
+                {% if r.status == "CONFIRMED" %}
+                <span class="badge bg-success">Đã xác nhận</span>
+                {% else %}
+                <span class="badge bg-secondary">{{ r.status }}</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="/sales/returns/{{ r.id }}" class="btn btn-sm btn-outline-info">
+                    <i class="bi bi-eye"></i>
+                </a>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">Chưa có phiếu trả nào</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}
