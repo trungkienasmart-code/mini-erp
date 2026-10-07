@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Vai trò{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-shield-check"></i> Quản lý Vai trò</h2>
+    <div>
+        <a href="/auth/users" class="btn btn-outline-secondary">
+            <i class="bi bi-people"></i> Người dùng
+        </a>
+        <a href="/auth/roles/new" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Thêm vai trò
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    <strong>Vai trò hệ thống</strong> không thể xóa (ADMIN, KETOAN, BANHANG, THUKHO, MUAHANG, CHIXEM).
+    Nhưng có thể sửa quyền chi tiết của chúng.
+</div>
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Mã</th>
+            <th>Tên vai trò</th>
+            <th>Mô tả</th>
+            <th class="text-center">Số user</th>
+            <th class="text-center">Số quyền</th>
+            <th class="text-center">Loại</th>
+            <th class="text-center" style="width: 140px;">Thao tác</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in roles %}
+        <tr>
+            <td>
+                <span class="badge
+                    {% if r.code == 'ADMIN' %}bg-danger
+                    {% elif r.code == 'KETOAN' %}bg-warning text-dark
+                    {% elif r.code == 'BANHANG' %}bg-success
+                    {% elif r.code == 'THUKHO' %}bg-primary
+                    {% elif r.code == 'MUAHANG' %}bg-info text-dark
+                    {% else %}bg-secondary{% endif %}">
+                    {{ r.code }}
+                </span>
+            </td>
+            <td><strong>{{ r.name }}</strong></td>
+            <td><small class="text-muted">{{ r.description or "—" }}</small></td>
+            <td class="text-center">
+                <span class="badge bg-primary">{{ role_stats[r.id].users }}</span>
+            </td>
+            <td class="text-center">
+                <span class="badge bg-info text-dark">{{ role_stats[r.id].permissions }}</span>
+            </td>
+            <td class="text-center">
+                {% if r.is_system %}
+                <span class="badge bg-secondary">Hệ thống</span>
+                {% else %}
+                <span class="badge bg-success">Tùy chỉnh</span>
+                {% endif %}
+            </td>
+            <td class="text-center">
+                <a href="/auth/roles/{{ r.id }}/edit"
+                   class="btn btn-sm btn-outline-primary" title="Sửa quyền">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                {% if not r.is_system %}
+                <form method="post" action="/auth/roles/{{ r.id }}/delete"
+                      class="d-inline"
+                      onsubmit="return confirm('Xóa vai trò {{ r.name }}?')">
+                    <button class="btn btn-sm btn-outline-danger" title="Xóa">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Người dùng{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-people-fill"></i> Quản lý Người dùng</h2>
+    <div>
+        <a href="/auth/roles" class="btn btn-outline-secondary">
+            <i class="bi bi-shield-check"></i> Vai trò
+        </a>
+        <a href="/auth/users/new" class="btn btn-primary">
+            <i class="bi bi-person-plus"></i> Thêm người dùng
+        </a>
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    <i class="bi bi-exclamation-triangle"></i> {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    <i class="bi bi-check-circle"></i> {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-6">
+        <input type="text" name="q" class="form-control"
+               placeholder="Tìm theo username, tên, email, SĐT..."
+               value="{{ keyword }}">
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-secondary">
+            <i class="bi bi-search"></i> Tìm
+        </button>
+        {% if keyword %}
+        <a href="/auth/users" class="btn btn-outline-danger">
+            <i class="bi bi-x-circle"></i>
+        </a>
+        {% endif %}
+    </div>
+</form>
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Username</th>
+            <th>Họ tên</th>
+            <th>Email / SĐT</th>
+            <th>Vai trò</th>
+            <th class="text-center">Trạng thái</th>
+            <th>Đăng nhập cuối</th>
+            <th class="text-center" style="width: 140px;">Thao tác</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for u in users %}
+        <tr {% if u.status != "ACTIVE" %}class="table-secondary"{% endif %}>
+            <td>
+                <strong>{{ u.username }}</strong>
+                {% if u.id == user.id %}
+                <span class="badge bg-info text-dark">Bạn</span>
+                {% endif %}
+            </td>
+            <td>{{ u.full_name }}</td>
+            <td>
+                {% if u.email %}<small>{{ u.email }}</small><br>{% endif %}
+                {% if u.phone %}<small class="text-muted">{{ u.phone }}</small>{% endif %}
+            </td>
+            <td>
+                {% for r in user_roles.get(u.id, []) %}
+                <span class="badge
+                    {% if r.code == 'ADMIN' %}bg-danger
+                    {% elif r.code == 'KETOAN' %}bg-warning text-dark
+                    {% elif r.code == 'BANHANG' %}bg-success
+                    {% elif r.code == 'THUKHO' %}bg-primary
+                    {% elif r.code == 'MUAHANG' %}bg-info text-dark
+                    {% else %}bg-secondary{% endif %}">
+                    {{ r.name }}
+                </span>
+                {% endfor %}
+            </td>
+            <td class="text-center">
+                {% if u.status == "ACTIVE" %}
+                <span class="badge bg-success">Hoạt động</span>
+                {% elif u.status == "LOCKED" %}
+                <span class="badge bg-danger">Bị khóa</span>
+                {% else %}
+                <span class="badge bg-secondary">{{ u.status }}</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if u.last_login_at %}
+                <small>{{ u.last_login_at.strftime("%d/%m/%y %H:%M") }}</small>
+                {% else %}
+                <small class="text-muted">Chưa đăng nhập</small>
+                {% endif %}
+            </td>
+            <td class="text-center">
+                <a href="/auth/users/{{ u.id }}/edit"
+                   class="btn btn-sm btn-outline-primary" title="Sửa">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                <button class="btn btn-sm btn-outline-warning" title="Reset mật khẩu"
+                        onclick="openReset({{ u.id }}, '{{ u.username }}')">
+                    <i class="bi bi-key"></i>
+                </button>
+                {% if u.id != user.id %}
+                <form method="post" action="/auth/users/{{ u.id }}/delete"
+                      class="d-inline"
+                      onsubmit="return confirm('Xóa user {{ u.username }}?')">
+                    <button class="btn btn-sm btn-outline-danger" title="Xóa">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">
+            Không có user nào
+        </td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<!-- Modal reset password -->
+<div class="modal fade" id="resetModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" id="resetForm">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="bi bi-key"></i> Reset mật khẩu
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Reset mật khẩu cho user: <strong id="resetUsername"></strong></p>
+                    <div class="mb-2">
+                        <label class="form-label">Mật khẩu mới</label>
+                        <input type="text" name="new_password" class="form-control"
+                               required minlength="4" value="admin123">
+                        <small class="text-muted">
+                            User sẽ phải đổi mật khẩu khi đăng nhập lần đầu.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-check-circle"></i> Reset
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openReset(uid, username) {
+    document.getElementById('resetUsername').textContent = username;
+    document.getElementById('resetForm').action = '/auth/users/' + uid + '/reset-password';
+    new bootstrap.Modal(document.getElementById('resetModal')).show();
+}
+</script>
+{% endblock %}

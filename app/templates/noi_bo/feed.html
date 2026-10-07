@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+{% block title %}Bảng tin Nội bộ{% endblock %}
+
+{% block content %}
+<style>
+.feed-container {
+    display: grid;
+    grid-template-columns: 260px 1fr 1.2fr;
+    gap: 15px;
+    height: calc(100vh - 180px);
+    min-height: 600px;
+}
+.feed-col {
+    background: white;
+    border-radius: 8px;
+    overflow-y: auto;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.feed-col-header {
+    padding: 12px 15px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    font-weight: 600;
+}
+.cat-item {
+    padding: 10px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.15s;
+}
+.cat-item:hover { background: #f0f7ff; }
+.cat-item.active { background: #e3f0ff; border-left: 3px solid #0d6efd; }
+.cat-item .badge-unread {
+    background: #dc3545;
+    color: white;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+.post-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.post-item:hover { background: #f8f9fa; }
+.post-item.active { background: #e3f0ff; border-left: 3px solid #0d6efd; }
+.post-item .post-title {
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 4px;
+    font-size: 0.95rem;
+}
+.post-item .post-meta {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+.post-item .pinned-icon { color: #ffc107; }
+.tag-chip {
+    display: inline-block;
+    background: #e9ecef;
+    color: #495057;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    margin-right: 4px;
+    cursor: pointer;
+}
+.tag-chip:hover { background: #dee2e6; }
+.detail-content {
+    padding: 20px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.attachment-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+.attachment-item:hover { background: #f8f9fa; }
+.attachment-icon {
+    font-size: 1.5rem;
+    width: 40px;
+    text-align: center;
+}
+.attachment-name {
+    flex: 1;
+    font-size: 0.9rem;
+    font-weight: 500;
+    word-break: break-all;
+}
+.comment-item {
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+.comment-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #667eea;
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.85rem;
+}
+.upload-zone {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.upload-zone:hover {
+    border-color: #0d6efd;
+    background: #f0f7ff;
+}
+@media (max-width: 1200px) {
+    .feed-container { grid-template-columns: 1fr; height: auto; }
+    .feed-col { max-height: 500px; }
+}
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-journal-bookmark-fill"></i> Bảng tin Nội bộ</h2>
+    <div>
+        <span class="badge bg-info text-dark">
+            <i class="bi bi-eye"></i> {{ stats.unread_count }} chưa đọc
+        </span>
+        {% if stats.pending_acks > 0 %}
+        <span class="badge bg-danger">
+            <i class="bi bi-exclamation-triangle"></i> {{ stats.pending_acks }} nội quy cần đọc
+        </span>
+        {% endif %}
+        {% if can_create %}
+        <a href="/internal/posts/new{% if cat_id %}?cat={{ cat_id }}{% endif %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Tạo bài viết
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="feed-container">
+    <!-- CỘT 1: DANH MỤC -->
+    <div class="feed-col">
+        <div class="feed-col-header">
+            <i class="bi bi-tags"></i> Danh mục
+        </div>
+        <a href="/internal/" class="text-decoration-none">
+            <div class="cat-item {% if not cat_id %}active{% endif %}">
+                <span><i class="bi bi-grid"></i> Tất cả</span>
+                <span class="badge bg-secondary">{{ stats.total_posts }}</span>
+            </div>
+        </a>
+        {% for c in categories %}
+        <a href="/internal/?cat={{ c.id }}" class="text-decoration-none">
+            <div class="cat-item {% if cat_id == c.id %}active{% endif %}">
+                <span style="color: {{ c.color }};">
+                    <i class="bi {{ c.icon }}"></i>
+                    {{ c.name }}
+                    {% if c.is_require_read %}
+                    <i class="bi bi-exclamation-circle text-danger" title="Bắt buộc đọc"></i>
+                    {% endif %}
+                </span>
+                {% if cat_stats[c.id].unread > 0 %}
+                <span class="badge-unread">{{ cat_stats[c.id].unread }}</span>
+                {% else %}
+                <span class="badge bg-secondary">{{ cat_stats[c.id].total }}</span>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+
+        {% if request.state.permissions and ('*' in request.state.permissions or 'internal.category.manage' in request.state.permissions) %}
+        <div class="p-2 border-top">
+            <a href="/internal/categories" class="btn btn-sm btn-outline-secondary w-100">
+                <i class="bi bi-gear"></i> Quản lý danh mục
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- Filter -->
+        <div class="p-3 border-top">
+            <form method="get" action="/internal/">
+                {% if cat_id %}<input type="hidden" name="cat" value="{{ cat_id }}">{% endif %}
+                <div class="input-group input-group-sm mb-2">
+                    <input type="text" name="q" class="form-control"
+                           placeholder="Tìm kiếm..." value="{{ keyword }}">
+                    <button class="btn btn-outline-secondary">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+                {% if tag %}
+                <div class="mt-2">
+                    <small class="text-muted">Đang lọc tag:</small>
+                    <span class="tag-chip">#{{ tag }}</span>
+                    <a href="/internal/{% if cat_id %}?cat={{ cat_id }}{% endif %}"
+                       class="text-danger small">×</a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- CỘT 2: DS BÀI VIẾT -->
+    <div class="feed-col">
+        <div class="feed-col-header">
+            <i class="bi bi-newspaper"></i> Bài viết ({{ posts|length }})
+        </div>
+        {% for p in posts %}
+        {% set is_unread = p.id not in (readers | map(attribute='post_id') | list) %}
+        <a href="/internal/?{% if cat_id %}cat={{ cat_id }}&{% endif %}post={{ p.id }}"
+           class="text-decoration-none">
+            <div class="post-item {% if current_post and current_post.id == p.id %}active{% endif %}">
+                <div class="post-title">
+                    {% if p.is_pinned %}
+                    <i class="bi bi-pin-angle-fill pinned-icon"></i>
+                    {% endif %}
+                    {% if p.status == "DRAFT" %}
+                    <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">Nháp</span>
+                    {% endif %}
+                    {{ p.title }}
+                </div>
+                <div class="post-meta">
+                    <i class="bi bi-person"></i> {{ p.author_name or "—" }}
+                    · <i class="bi bi-clock"></i> {{ p.created_at.strftime("%d/%m/%y %H:%M") }}
+                    {% if p.view_count > 0 %}
+                    · <i class="bi bi-eye"></i> {{ p.view_count }}
+                    {% endif %}
+                </div>
+                {% if p.tags %}
+                <div class="mt-1">
+                    {% for t in p.tags.split(',') %}
+                    {% if t.strip() %}
+                    <span class="tag-chip">#{{ t.strip() }}</span>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </a>
+        {% else %}
+        <div class="text-center text-muted p-5">
+            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+            <p class="mt-2">Chưa có bài viết nào</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- CỘT 3: CHI TIẾT BÀI VIẾT -->
+    <div class="feed-col">
+        {% if current_post %}
+        <div class="feed-col-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-file-text"></i> Chi tiết</span>
+            <div>
+                {% if can_edit %}
+                <a href="/internal/posts/{{ current_post.id }}/edit"
+                   class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-pencil"></i> Sửa
+                </a>
+                <form method="post" action="/internal/posts/{{ current_post.id }}/delete"
+                      class="d-inline"
+                      onsubmit="return confirm('Xóa bài viết này?')">
+                    <button class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="p-3">
+            <h4>{{ current_post.title }}</h4>
+            <div class="text-muted small mb-3">
+                <i class="bi bi-person-circle"></i> {{ current_post.author_name }}
+                · <i class="bi bi-clock"></i> {{ current_post.created_at.strftime("%d/%m/%Y %H:%M") }}
+                · <i class="bi bi-eye"></i> {{ current_post.view_count }} lượt xem
+            </div>
+
+            {% if current_post.tags %}
+            <div class="mb-3">
+                {% for t in current_post.tags.split(',') %}
+                {% if t.strip() %}
+                <a href="/internal/?tag={{ t.strip() }}" class="text-decoration-none">
+                    <span class="tag-chip">#{{ t.strip() }}</span>
+                </a>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="detail-content">{{ current_post.content }}</div>
+
+            <!-- Attachments -->
+            {% if attachments %}
+            <hr>
+            <h6><i class="bi bi-paperclip"></i> Tệp đính kèm ({{ attachments|length }})</h6>
+            {% for att in attachments %}
+            <div class="attachment-item">
+                <div class="attachment-icon">
+                    {% if att.file_type == "IMAGE" %}
+                    <i class="bi bi-file-image text-success"></i>
+                    {% elif att.file_type == "PDF" %}
+                    <i class="bi bi-file-pdf text-danger"></i>
+                    {% elif att.file_type == "TEXT" %}
+                    <i class="bi bi-file-text text-info"></i>
+                    {% else %}
+                    <i class="bi bi-file-earmark text-secondary"></i>
+                    {% endif %}
+                </div>
+                <div class="attachment-name">
+                    <a href="{{ get_file_url(att) }}" target="_blank">{{ att.original_name }}</a>
+                    <div class="text-muted small">{{ format_file_size(att.file_size) }}</div>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Nút xác nhận đọc Nội quy -->
+            {% set cat_obj = categories | selectattr('id', 'equalto', current_post.category_id) | first %}
+            {% if cat_obj and cat_obj.is_require_read %}
+            <hr>
+            {% if has_ack %}
+            <div class="alert alert-success mb-0">
+                <i class="bi bi-check-circle-fill"></i>
+                Bạn đã xác nhận đọc nội quy này.
+            </div>
+            {% else %}
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <strong>Nội quy này yêu cầu xác nhận đọc.</strong>
+                Vui lòng bấm nút bên dưới để xác nhận.
+            </div>
+            <form method="post" action="/internal/posts/{{ current_post.id }}/acknowledge">
+                <button class="btn btn-danger w-100">
+                    <i class="bi bi-check2-circle"></i> TÔI ĐÃ ĐỌC VÀ ĐỒNG Ý
+                </button>
+            </form>
+            {% endif %}
+            {% endif %}
+
+            <!-- DS người đã đọc (cho quản lý) -->
+            {% if readers %}
+            <hr>
+            <details>
+                <summary class="text-muted small">
+                    <i class="bi bi-people"></i> {{ readers|length }} người đã đọc
+                </summary>
+                <div class="mt-2">
+                    {% for r in readers %}
+                    <span class="badge bg-secondary mb-1">User #{{ r.user_id }}
+                        · {{ r.read_at.strftime("%d/%m %H:%M") }}</span>
+                    {% endfor %}
+                </div>
+            </details>
+            {% endif %}
+
+            {% if acknowledgers %}
+            <details class="mt-2">
+                <summary class="text-success small">
+                    <i class="bi bi-check-circle"></i> {{ acknowledgers|length }} người đã xác nhận
+                </summary>
+                <div class="mt-2">
+                    {% for a in acknowledgers %}
+                    <span class="badge bg-success mb-1">User #{{ a.user_id }}
+                        · {{ a.ack_at.strftime("%d/%m %H:%M") }}</span>
+                    {% endfor %}
+                </div>
+            </details>
+            {% endif %}
+
+            <!-- Bình luận -->
+            <hr>
+            <h6><i class="bi bi-chat-dots"></i> Bình luận ({{ comments|length }})</h6>
+            {% for cmt in comments %}
+            <div class="comment-item" id="comment-{{ cmt.id }}">
+                <div class="d-flex gap-2">
+                    <div class="comment-avatar">
+                        {{ cmt.user_name[0].upper() if cmt.user_name else "?" }}
+                    </div>
+                    <div class="flex-grow-1">
+                        <div>
+                            <strong>{{ cmt.user_name or "Ẩn danh" }}</strong>
+                            <small class="text-muted">· {{ cmt.created_at.strftime("%d/%m %H:%M") }}</small>
+                        </div>
+                        <div>{{ cmt.content }}</div>
+                    </div>
+                    {% if cmt.user_id == user.id or request.state.permissions and ('*' in request.state.permissions or 'internal.post.edit' in request.state.permissions) %}
+                    <form method="post" action="/internal/comments/{{ cmt.id }}/delete"
+                          onsubmit="return confirm('Xóa bình luận này?')">
+                        <button class="btn btn-sm btn-link text-danger p-0">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+
+            <form method="post" action="/internal/posts/{{ current_post.id }}/comment" class="mt-3">
+                <div class="input-group">
+                    <input type="text" name="content" class="form-control"
+                           placeholder="Viết bình luận..." required>
+                    <button class="btn btn-primary">
+                        <i class="bi bi-send"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+        {% else %}
+        <div class="text-center text-muted p-5">
+            <i class="bi bi-arrow-left-circle" style="font-size: 4rem;"></i>
+            <p class="mt-3">Chọn một bài viết để xem chi tiết</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Popup nhắc nhở nội quy chưa đọc -->
+{% if pending_acks %}
+<div class="modal fade" id="ackModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Nội quy cần đọc
+                </h5>
+            </div>
+            <div class="modal-body">
+                <p>Bạn có <strong>{{ pending_acks|length }}</strong> nội quy chưa xác nhận đọc:</p>
+                <ul class="list-group">
+                    {% for p in pending_acks %}
+                    <li class="list-group-item">
+                        <a href="/internal/?cat={{ p.category_id }}&post={{ p.id }}">
+                            <i class="bi bi-file-text"></i> {{ p.title }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <p class="text-muted small mt-3">
+                    Vui lòng đọc và xác nhận để tiếp tục sử dụng hệ thống.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Để sau
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ackModal = document.getElementById('ackModal');
+    if (ackModal) {
+        new bootstrap.Modal(ackModal).show();
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

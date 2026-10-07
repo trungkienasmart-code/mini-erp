@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ "Sửa" if is_edit else "Thêm" }} Người dùng{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>
+        <i class="bi bi-person-plus"></i>
+        {{ "Sửa Người dùng" if is_edit else "Thêm Người dùng" }}
+    </h2>
+    <a href="/auth/users" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post"
+              action="{{ '/auth/users/' + edit_user.id|string + '/update' if is_edit else '/auth/users/create' }}">
+            <div class="row g-3">
+                <!-- Username: chỉ hiện khi tạo mới -->
+                <div class="col-md-6">
+                    <label class="form-label">
+                        Tên đăng nhập <span class="text-danger">*</span>
+                    </label>
+                    {% if is_edit %}
+                    <input type="text" class="form-control" disabled
+                           value="{{ edit_user.username }}">
+                    <small class="text-muted">Không thể đổi username</small>
+                    {% else %}
+                    <input type="text" name="username" class="form-control" required
+                           minlength="3" maxlength="50"
+                           placeholder="VD: nv01, ketoan..."
+                           autocomplete="off">
+                    <small class="text-muted">3-50 ký tự, không dấu, không khoảng trắng</small>
+                    {% endif %}
+                </div>
+
+                <!-- Password: chỉ hiện khi tạo mới -->
+                {% if not is_edit %}
+                <div class="col-md-6">
+                    <label class="form-label">
+                        Mật khẩu <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" name="password" class="form-control" required
+                           minlength="4" value="admin123"
+                           autocomplete="off">
+                    <small class="text-muted">
+                        User sẽ phải đổi khi đăng nhập lần đầu.
+                    </small>
+                </div>
+                {% endif %}
+
+                <div class="col-md-6">
+                    <label class="form-label">Họ tên <span class="text-danger">*</span></label>
+                    <input type="text" name="full_name" class="form-control" required
+                           value="{{ edit_user.full_name if edit_user else '' }}">
+                </div>
+
+                {% if is_edit %}
+                <div class="col-md-6">
+                    <label class="form-label">Trạng thái</label>
+                    <select name="status" class="form-select">
+                        <option value="ACTIVE"
+                                {% if edit_user.status == "ACTIVE" %}selected{% endif %}>
+                            Hoạt động
+                        </option>
+                        <option value="LOCKED"
+                                {% if edit_user.status == "LOCKED" %}selected{% endif %}>
+                            Bị khóa (không đăng nhập được)
+                        </option>
+                        <option value="SUSPENDED"
+                                {% if edit_user.status == "SUSPENDED" %}selected{% endif %}>
+                            Tạm ngưng
+                        </option>
+                    </select>
+                </div>
+                {% endif %}
+
+                <div class="col-md-6">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control"
+                           value="{{ edit_user.email if edit_user else '' }}">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Số điện thoại</label>
+                    <input type="text" name="phone" class="form-control"
+                           value="{{ edit_user.phone if edit_user else '' }}">
+                </div>
+
+                <!-- Phân vai trò -->
+                <div class="col-12">
+                    <label class="form-label">
+                        <i class="bi bi-shield-check"></i> Vai trò
+                    </label>
+                    <div class="row g-2">
+                        {% for r in roles %}
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input type="checkbox" name="role_ids" value="{{ r.id }}"
+                                       class="form-check-input" id="role_{{ r.id }}"
+                                       {% if r.id in selected_role_ids %}checked{% endif %}>
+                                <label class="form-check-label" for="role_{{ r.id }}">
+                                    <strong>{{ r.name }}</strong>
+                                    {% if r.code == 'ADMIN' %}
+                                    <span class="badge bg-danger">Toàn quyền</span>
+                                    {% endif %}
+                                    <br>
+                                    <small class="text-muted">{{ r.description }}</small>
+                                </label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label">Ghi chú</label>
+                    <textarea name="note" class="form-control" rows="2">{{ edit_user.note if edit_user else '' }}</textarea>
+                </div>
+            </div>
+
+            <hr class="my-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-save"></i> {{ "Cập nhật" if is_edit else "Tạo user" }}
+            </button>
+            <a href="/auth/users" class="btn btn-secondary">Hủy</a>
+        </form>
+    </div>
+</div>
+
+<style>
+.form-check-input:checked { background-color: #0d6efd; border-color: #0d6efd; }
+</style>
+{% endblock %}

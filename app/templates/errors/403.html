@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Không có quyền truy cập{% endblock %}
+
+{% block content %}
+<div class="text-center py-5">
+    <div style="font-size: 6rem; color: #dc3545;">
+        <i class="bi bi-shield-lock-fill"></i>
+    </div>
+    <h2 class="mt-3">Không có quyền truy cập</h2>
+    <p class="lead text-muted">
+        Bạn không có quyền truy cập trang này.<br>
+        Liên hệ <strong>Quản trị viên</strong> nếu bạn cho rằng đây là nhầm lẫn.
+    </p>
+
+    {% if required_permission %}
+    <div class="alert alert-secondary d-inline-block text-start mt-3">
+        <small>
+            <strong>Quyền cần có:</strong> <code>{{ required_permission }}</code><br>
+            <strong>Vai trò hiện tại:</strong>
+            {% for r in user_roles %}
+            <span class="badge bg-secondary">{{ r.code }}</span>
+            {% endfor %}
+        </small>
+    </div>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="/" class="btn btn-primary btn-lg">
+            <i class="bi bi-house"></i> Về trang chủ
+        </a>
+        <a href="javascript:history.back()" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-arrow-left"></i> Quay lại
+        </a>
+    </div>
+</div>
+{% endblock %}

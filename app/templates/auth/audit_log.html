@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Lịch sử thao tác{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-clock-history"></i> Lịch sử thao tác</h2>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-4">
+        <input type="text" name="q" class="form-control"
+               placeholder="Tìm theo username, mô tả..."
+               value="{{ keyword }}">
+    </div>
+    <div class="col-md-2">
+        <select name="action" class="form-select">
+            <option value="">-- Hành động --</option>
+            <option value="LOGIN" {% if filter_action == "LOGIN" %}selected{% endif %}>Đăng nhập</option>
+            <option value="LOGOUT" {% if filter_action == "LOGOUT" %}selected{% endif %}>Đăng xuất</option>
+            <option value="CREATE" {% if filter_action == "CREATE" %}selected{% endif %}>Tạo mới</option>
+            <option value="UPDATE" {% if filter_action == "UPDATE" %}selected{% endif %}>Cập nhật</option>
+            <option value="DELETE" {% if filter_action == "DELETE" %}selected{% endif %}>Xóa</option>
+            <option value="APPROVE" {% if filter_action == "APPROVE" %}selected{% endif %}>Duyệt</option>
+            <option value="CHANGE_PASSWORD" {% if filter_action == "CHANGE_PASSWORD" %}selected{% endif %}>Đổi mật khẩu</option>
+            <option value="RESET_PASSWORD" {% if filter_action == "RESET_PASSWORD" %}selected{% endif %}>Reset mật khẩu</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select name="model" class="form-select">
+            <option value="">-- Đối tượng --</option>
+            <option value="auth_user" {% if filter_model == "auth_user" %}selected{% endif %}>Người dùng</option>
+            <option value="auth_role" {% if filter_model == "auth_role" %}selected{% endif %}>Vai trò</option>
+            <option value="sale_order" {% if filter_model == "sale_order" %}selected{% endif %}>Đơn bán</option>
+            <option value="purchase_order" {% if filter_model == "purchase_order" %}selected{% endif %}>Đơn mua</option>
+            <option value="voucher" {% if filter_model == "voucher" %}selected{% endif %}>Phiếu thu/chi</option>
+            <option value="stock_move" {% if filter_model == "stock_move" %}selected{% endif %}>Nhập/xuất kho</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary"><i class="bi bi-search"></i> Lọc</button>
+        {% if keyword or filter_action or filter_model %}
+        <a href="/auth/audit-log" class="btn btn-outline-danger">
+            <i class="bi bi-x-circle"></i>
+        </a>
+        {% endif %}
+    </div>
+</form>
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th style="width: 130px;">Thời gian</th>
+            <th style="width: 120px;">User</th>
+            <th style="width: 130px;">Hành động</th>
+            <th style="width: 130px;">Đối tượng</th>
+            <th>Mô tả</th>
+            <th style="width: 100px;">IP</th>
+            <th style="width: 60px;" class="text-center">Chi tiết</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for log in logs %}
+        <tr>
+            <td><small>{{ log.created_at.strftime("%d/%m/%y %H:%M:%S") }}</small></td>
+            <td>
+                {% if log.username %}
+                <strong>{{ log.username }}</strong>
+                {% else %}
+                <span class="text-muted">—</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if log.action == "LOGIN" %}
+                <span class="badge bg-success"><i class="bi bi-box-arrow-in-right"></i> Đăng nhập</span>
+                {% elif log.action == "LOGOUT" %}
+                <span class="badge bg-secondary"><i class="bi bi-box-arrow-right"></i> Đăng xuất</span>
+                {% elif log.action == "CREATE" %}
+                <span class="badge bg-primary"><i class="bi bi-plus-circle"></i> Tạo mới</span>
+                {% elif log.action == "UPDATE" %}
+                <span class="badge bg-warning text-dark"><i class="bi bi-pencil"></i> Cập nhật</span>
+                {% elif log.action == "DELETE" %}
+                <span class="badge bg-danger"><i class="bi bi-trash"></i> Xóa</span>
+                {% elif log.action == "APPROVE" %}
+                <span class="badge bg-info text-dark"><i class="bi bi-check-circle"></i> Duyệt</span>
+                {% elif log.action == "RESET_PASSWORD" %}
+                <span class="badge bg-warning text-dark"><i class="bi bi-key"></i> Reset pass</span>
+                {% elif log.action == "CHANGE_PASSWORD" %}
+                <span class="badge bg-info text-dark"><i class="bi bi-key"></i> Đổi pass</span>
+                {% else %}
+                <span class="badge bg-secondary">{{ log.action }}</span>
+                {% endif %}
+            </td>
+            <td><small><code>{{ log.model or "—" }}</code></small></td>
+            <td>
+                {{ log.description }}
+                {% if log.record_id %}
+                <small class="text-muted">(#{{ log.record_id }})</small>
+                {% endif %}
+            </td>
+            <td><small class="text-muted">{{ log.ip_address or "—" }}</small></td>
+            <td class="text-center">
+                {% if log.old_value or log.new_value %}
+                <button class="btn btn-sm btn-outline-info"
+                        onclick='showDetail({{ loop.index }}, {{ log.old_value | tojson | safe }}, {{ log.new_value | tojson | safe }})'>
+                    <i class="bi bi-eye"></i>
+                </button>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">
+            Không có log nào
+        </td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<!-- Modal chi tiết -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="bi bi-code-square"></i> Chi tiết thay đổi</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6 class="text-danger">Giá trị cũ:</h6>
+                <pre id="oldValue" class="bg-light p-2 rounded" style="font-size: 0.85rem;"></pre>
+                <h6 class="text-success mt-3">Giá trị mới:</h6>
+                <pre id="newValue" class="bg-light p-2 rounded" style="font-size: 0.85rem;"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showDetail(idx, oldVal, newVal) {
+    let oldObj = {}, newObj = {};
+    try { oldObj = typeof oldVal === 'string' ? JSON.parse(oldVal) : oldVal; } catch(e) {}
+    try { newObj = typeof newVal === 'string' ? JSON.parse(newVal) : newVal; } catch(e) {}
+
+    document.getElementById('oldValue').textContent =
+        Object.keys(oldObj).length ? JSON.stringify(oldObj, null, 2) : '(không có)';
+    document.getElementById('newValue').textContent =
+        Object.keys(newObj).length ? JSON.stringify(newObj, null, 2) : '(không có)';
+
+    new bootstrap.Modal(document.getElementById('detailModal')).show();
+}
+</script>
+{% endblock %}

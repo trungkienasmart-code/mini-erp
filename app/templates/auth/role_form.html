@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}{{ "Sửa" if is_edit else "Thêm" }} Vai trò{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>
+        <i class="bi bi-shield-check"></i>
+        {{ "Sửa Vai trò: " + edit_role.name if is_edit else "Thêm Vai trò" }}
+    </h2>
+    <a href="/auth/roles" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<form method="post"
+      action="{{ '/auth/roles/' + edit_role.id|string + '/update' if is_edit else '/auth/roles/create' }}">
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Thông tin vai trò -->
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">Thông tin vai trò</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">
+                                Mã vai trò <span class="text-danger">*</span>
+                            </label>
+                            {% if is_edit %}
+                            <input type="text" class="form-control" disabled
+                                   value="{{ edit_role.code }}">
+                            <small class="text-muted">Không thể đổi mã</small>
+                            {% else %}
+                            <input type="text" name="code" class="form-control" required
+                                   placeholder="VD: KETOAN, THUKHO..."
+                                   pattern="[A-Z0-9_]{2,50}"
+                                   oninput="this.value = this.value.toUpperCase()"
+                                   autocomplete="off">
+                            <small class="text-muted">
+                                Chữ IN HOA + số + dấu gạch dưới
+                            </small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Tên vai trò <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" required
+                                   value="{{ edit_role.name if edit_user else '' }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Mô tả</label>
+                            <input type="text" name="description" class="form-control"
+                                   value="{{ edit_role.description if edit_role else '' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phân quyền chi tiết -->
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <i class="bi bi-key"></i> Quyền chi tiết
+                    <small class="float-end">
+                        <a href="#" onclick="selectAll(); return false;"
+                           class="text-white">Chọn tất cả</a> |
+                        <a href="#" onclick="unselectAll(); return false;"
+                           class="text-white">Bỏ chọn</a>
+                    </small>
+                </div>
+                <div class="card-body">
+                    {% set module_names = {
+                        'inventory': 'Quản lý Kho',
+                        'sales': 'Bán hàng',
+                        'purchase': 'Mua hàng',
+                        'accounting': 'Kế toán',
+                        'auth': 'Người dùng',
+                        'internal': 'Nội bộ'
+                    } %}
+                    {% set module_icons = {
+                        'inventory': 'bi-box-seam',
+                        'sales': 'bi-cart-check',
+                        'purchase': 'bi-cart-plus',
+                        'accounting': 'bi-calculator',
+                        'auth': 'bi-people-fill',
+                        'internal': 'bi-journal-text'
+                    } %}
+
+                    {% for module, perms in perm_grouped.items() %}
+                    <div class="mb-3">
+                        <h6 class="border-bottom pb-2">
+                            <i class="bi {{ module_icons.get(module, 'bi-circle') }}"></i>
+                            {{ module_names.get(module, module) }}
+                            <span class="badge bg-secondary">{{ perms|length }}</span>
+                            <a href="#" onclick="toggleModule('{{ module }}'); return false;"
+                               class="float-end small">Chọn/Bỏ</a>
+                        </h6>
+                        <div class="row g-2 ms-2">
+                            {% for p in perms %}
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input type="checkbox" name="permission_ids"
+                                           value="{{ p.id }}"
+                                           class="form-check-input perm-{{ module }}"
+                                           id="p_{{ p.id }}"
+                                           {% if p.id in selected_perm_ids %}checked{% endif %}>
+                                    <label class="form-check-label" for="p_{{ p.id }}">
+                                        <small>{{ p.name }}</small>
+                                        <br>
+                                        <code class="text-muted" style="font-size: 0.7rem;">{{ p.code }}</code>
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card sticky-top" style="top: 70px;">
+                <div class="card-header bg-success text-white">Thao tác</div>
+                <div class="card-body">
+                    <button type="submit" class="btn btn-primary w-100 mb-2">
+                        <i class="bi bi-save"></i> {{ "Cập nhật" if is_edit else "Tạo vai trò" }}
+                    </button>
+                    <a href="/auth/roles" class="btn btn-secondary w-100">Hủy</a>
+
+                    <hr>
+                    <div class="text-center">
+                        <small class="text-muted">
+                            Đã chọn: <strong id="countSelected">0</strong> quyền
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+function updateCount() {
+    const n = document.querySelectorAll('input[name="permission_ids"]:checked').length;
+    document.getElementById('countSelected').textContent = n;
+}
+
+function toggleModule(module) {
+    const boxes = document.querySelectorAll('.perm-' + module);
+    const allChecked = Array.from(boxes).every(b => b.checked);
+    boxes.forEach(b => b.checked = !allChecked);
+    updateCount();
+}
+
+function selectAll() {
+    document.querySelectorAll('input[name="permission_ids"]').forEach(b => b.checked = true);
+    updateCount();
+}
+
+function unselectAll() {
+    document.querySelectorAll('input[name="permission_ids"]').forEach(b => b.checked = false);
+    updateCount();
+}
+
+document.querySelectorAll('input[name="permission_ids"]').forEach(b => {
+    b.addEventListener('change', updateCount);
+});
+
+updateCount();
+</script>
+{% endblock %}

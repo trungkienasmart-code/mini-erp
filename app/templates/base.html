@@ -10,13 +10,37 @@
 </head>
 <body>
     <!-- Navbar giống Odoo -->
-    <nav class="navbar navbar-dark bg-dark px-3">
+       <nav class="navbar navbar-dark bg-dark px-3">
         <a class="navbar-brand fw-bold" href="/">
             <i class="bi bi-box-seam"></i> Mini ERP
         </a>
-        <div class="text-white">
-            <span class="me-3"><i class="bi bi-person-circle"></i> Admin</span>
+        {% if request.state.user %}
+        <div class="dropdown">
+            <a class="text-white text-decoration-none dropdown-toggle" href="#"
+               role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-person-circle"></i>
+                {{ request.state.user.full_name }}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                    <a class="dropdown-item" href="/auth/profile">
+                        <i class="bi bi-person"></i> Trang cá nhân
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="/auth/users">
+                        <i class="bi bi-people"></i> Người dùng
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item text-danger" href="/auth/logout">
+                        <i class="bi bi-box-arrow-right"></i> Đăng xuất
+                    </a>
+                </li>
+            </ul>
         </div>
+        {% endif %}
     </nav>
 
     <div class="container-fluid">
@@ -35,48 +59,66 @@
                     <hr class="my-2">
                     {% set current_path = request.url.path %}
 
+                    {# Định nghĩa mapping giữa module và quyền xem #}
+                    {% set module_perm_map = {
+                        'Quản Lý Kho': 'inventory.product.view',
+                        'Bán Hàng': 'sales.order.view',
+                        'Mua Hàng': 'purchase.order.view',
+                        'Kế Toán': 'accounting.voucher.view',
+                        'Người dùng': 'auth.user.view',
+                        'Demo (test)': None,
+                    } %}
+
                     {% for mod in modules %}
                         {% set menu_id = "menu-" ~ loop.index %}
                         {% set has_menus = mod.get('menus') %}
                         {% set is_mod_active = mod.get('url_prefix') and current_path.startswith(mod.get('url_prefix')) %}
 
-                        {% if has_menus %}
-                            <li class="nav-item">
-                                <a class="nav-link d-flex justify-content-between align-items-center {% if is_mod_active %}text-primary fw-bold{% endif %}"
-                                   data-bs-toggle="collapse" href="#{{ menu_id }}"
-                                   role="button"
-                                   aria-expanded="{{ 'true' if is_mod_active else 'false' }}"
-                                   aria-controls="{{ menu_id }}">
-                                    <span>
+                        {# Kiểm tra quyền hiển thị module #}
+                        {% set required_perm = module_perm_map.get(mod.name) %}
+                        {% set user_perms = request.state.permissions or [] %}
+                        {% set show_module = (not required_perm)
+                            or ('*' in user_perms)
+                            or (required_perm in user_perms) %}
+
+                        {% if show_module %}
+                            {% if has_menus %}
+                                <li class="nav-item">
+                                    <a class="nav-link d-flex justify-content-between align-items-center {% if is_mod_active %}text-primary fw-bold{% endif %}"
+                                       data-bs-toggle="collapse" href="#{{ menu_id }}"
+                                       role="button"
+                                       aria-expanded="{{ 'true' if is_mod_active else 'false' }}"
+                                       aria-controls="{{ menu_id }}">
+                                        <span>
+                                            <i class="bi {{ mod.get('icon', 'bi-circle') }}"></i>
+                                            {{ mod.name }}
+                                        </span>
+                                        <i class="bi bi-chevron-down small"></i>
+                                    </a>
+                                    <div class="collapse {% if is_mod_active %}show{% endif %}" id="{{ menu_id }}">
+                                        <ul class="nav flex-column ms-2">
+                                            {% for m in has_menus %}
+                                            {% set is_sub_active = (current_path == m.url) or (m.url[-1:] != '/' and current_path.startswith(m.url ~ '/')) %}
+                                            <li class="nav-item">
+                                                <a class="nav-link py-1 small {% if is_sub_active %}active{% endif %}"
+                                                   href="{{ m.url }}">
+                                                    <i class="bi {{ m.get('icon', 'bi-dot') }}"></i>
+                                                    {{ m.name }}
+                                                </a>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </li>
+                            {% else %}
+                                <li class="nav-item">
+                                    <a class="nav-link {% if is_mod_active %}active{% endif %}"
+                                       href="{{ mod.get('url', '#') }}">
                                         <i class="bi {{ mod.get('icon', 'bi-circle') }}"></i>
                                         {{ mod.name }}
-                                    </span>
-                                    <i class="bi bi-chevron-down small"></i>
-                                </a>
-                                <div class="collapse {% if is_mod_active %}show{% endif %}" id="{{ menu_id }}">
-                                    <ul class="nav flex-column ms-2">
-                                        {% for m in has_menus %}
-                                        {# Xác định active: khớp chính xác HOẶC (URL không kết thúc /) và là prefix #}
-                                        {% set is_sub_active = (current_path == m.url) or (m.url[-1:] != '/' and current_path.startswith(m.url ~ '/')) %}
-                                        <li class="nav-item">
-                                            <a class="nav-link py-1 small {% if is_sub_active %}active{% endif %}"
-                                               href="{{ m.url }}">
-                                                <i class="bi {{ m.get('icon', 'bi-dot') }}"></i>
-                                                {{ m.name }}
-                                            </a>
-                                        </li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                            </li>
-                        {% else %}
-                            <li class="nav-item">
-                                <a class="nav-link {% if is_mod_active %}active{% endif %}"
-                                   href="{{ mod.get('url', '#') }}">
-                                    <i class="bi {{ mod.get('icon', 'bi-circle') }}"></i>
-                                    {{ mod.name }}
-                                </a>
-                            </li>
+                                    </a>
+                                </li>
+                            {% endif %}
                         {% endif %}
                     {% endfor %}
                     {% endif %}

@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Trang cá nhân{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-person-circle"></i> Trang cá nhân</h2>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+{% if user.must_change_password %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <strong>Cảnh báo bảo mật!</strong> Bạn đang dùng mật khẩu mặc định. Vui lòng đổi mật khẩu mới.
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-4">
+        <!-- Thông tin tài khoản -->
+        <div class="card mb-3">
+            <div class="card-body text-center">
+                <div style="font-size: 5rem; color: #667eea;">
+                    <i class="bi bi-person-circle"></i>
+                </div>
+                <h4 class="mb-0">{{ user.full_name }}</h4>
+                <p class="text-muted mb-2">@{{ user.username }}</p>
+
+                {% for r in roles %}
+                <span class="badge
+                    {% if r.code == 'ADMIN' %}bg-danger
+                    {% elif r.code == 'KETOAN' %}bg-warning text-dark
+                    {% elif r.code == 'BANHANG' %}bg-success
+                    {% elif r.code == 'THUKHO' %}bg-primary
+                    {% elif r.code == 'MUAHANG' %}bg-info text-dark
+                    {% else %}bg-secondary{% endif %}">
+                    {{ r.name }}
+                </span>
+                {% endfor %}
+
+                <hr>
+                <table class="table table-sm mb-0 text-start">
+                    <tr>
+                        <th width="45%">Trạng thái</th>
+                        <td>
+                            {% if user.status == "ACTIVE" %}
+                            <span class="badge bg-success">Hoạt động</span>
+                            {% else %}
+                            <span class="badge bg-danger">{{ user.status }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Số quyền</th>
+                        <td><span class="badge bg-info text-dark">{{ perm_count }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Đăng nhập cuối</th>
+                        <td>
+                            {% if user.last_login_at %}
+                            <small>{{ user.last_login_at.strftime("%d/%m/%Y %H:%M") }}</small>
+                            {% else %}<small class="text-muted">—</small>{% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>IP</th>
+                        <td><small class="text-muted">{{ user.last_login_ip or "—" }}</small></td>
+                    </tr>
+                    <tr>
+                        <th>Ngày tạo</th>
+                        <td><small>{{ user.created_at.strftime("%d/%m/%Y") }}</small></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Đổi mật khẩu -->
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <i class="bi bi-key"></i> Đổi mật khẩu
+            </div>
+            <div class="card-body">
+                <form method="post" action="/auth/profile/change-password">
+                    <div class="mb-2">
+                        <label class="form-label small">Mật khẩu cũ <span class="text-danger">*</span></label>
+                        <input type="password" name="old_password" class="form-control"
+                               required autocomplete="current-password">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Mật khẩu mới <span class="text-danger">*</span></label>
+                        <input type="password" name="new_password" class="form-control"
+                               required minlength="4" autocomplete="new-password">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Xác nhận mật khẩu <span class="text-danger">*</span></label>
+                        <input type="password" name="confirm_password" class="form-control"
+                               required minlength="4" autocomplete="new-password">
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100">
+                        <i class="bi bi-check-circle"></i> Đổi mật khẩu
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <!-- Cập nhật profile -->
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-pencil"></i> Cập nhật thông tin
+            </div>
+            <div class="card-body">
+                <form method="post" action="/auth/profile/update">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Tên đăng nhập</label>
+                            <input type="text" class="form-control" disabled
+                                   value="{{ user.username }}">
+                            <small class="text-muted">Không thể đổi username</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Họ tên <span class="text-danger">*</span></label>
+                            <input type="text" name="full_name" class="form-control"
+                                   required value="{{ user.full_name }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control"
+                                   value="{{ user.email }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Số điện thoại</label>
+                            <input type="text" name="phone" class="form-control"
+                                   value="{{ user.phone }}">
+                        </div>
+                    </div>
+                    <hr class="my-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Cập nhật thông tin
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Quyền đang có -->
+        <div class="card mt-3">
+            <div class="card-header bg-secondary text-white">
+                <i class="bi bi-shield-check"></i> Quyền đang có ({{ perm_count }})
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">
+                    Đây là các quyền bạn được cấp qua vai trò. Liên hệ Admin nếu cần thêm quyền.
+                </p>
+                <div class="d-flex flex-wrap gap-1">
+                    {% for r in roles %}
+                    <span class="badge bg-secondary">{{ r.code }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

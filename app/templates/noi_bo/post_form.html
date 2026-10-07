@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+{% block title %}{{ "Sửa" if is_edit else "Tạo" }} bài viết{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>
+        <i class="bi bi-file-text"></i>
+        {{ "Sửa bài viết" if is_edit else "Tạo bài viết mới" }}
+    </h2>
+    <a href="/internal/{% if post %}?cat={{ post.category_id }}&post={{ post.id }}{% endif %}"
+       class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <form method="post"
+              action="{{ '/internal/posts/' + post.id|string + '/update' if is_edit else '/internal/posts/create' }}">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Tiêu đề <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control form-control-lg"
+                                   required maxlength="300"
+                                   value="{{ post.title if post else '' }}"
+                                   placeholder="Nhập tiêu đề bài viết...">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Danh mục <span class="text-danger">*</span></label>
+                            <select name="category_id" class="form-select" required>
+                                {% for c in categories %}
+                                <option value="{{ c.id }}"
+                                        {% if default_cat_id == c.id %}selected{% endif %}>
+                                    {{ c.name }}
+                                    {% if c.is_require_read %}⭐{% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Trạng thái</label>
+                            <select name="status" class="form-select">
+                                <option value="DRAFT"
+                                        {% if not post or post.status == "DRAFT" %}selected{% endif %}>
+                                    Nháp (chỉ mình bạn thấy)
+                                </option>
+                                <option value="PUBLISHED"
+                                        {% if post and post.status == "PUBLISHED" %}selected{% endif %}>
+                                    Đã đăng (mọi người thấy)
+                                </option>
+                                <option value="ARCHIVED"
+                                        {% if post and post.status == "ARCHIVED" %}selected{% endif %}>
+                                    Lưu trữ
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Nội dung</label>
+                            <textarea name="content" class="form-control" rows="15"
+                                      placeholder="Nhập nội dung...">{{ post.content if post else '' }}</textarea>
+                        </div>
+
+                        <div class="col-md-8">
+                            <label class="form-label">
+                                <i class="bi bi-tags"></i> Tags
+                            </label>
+                            <input type="text" name="tags" class="form-control"
+                                   value="{{ post.tags if post else '' }}"
+                                   placeholder="quan-trong,khan-cap,da-lam">
+                            <small class="text-muted">
+                                Phân cách bằng dấu phẩy, không dấu, không space
+                            </small>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Ghim lên đầu</label>
+                            <div class="form-check form-switch mt-2">
+                                <input type="checkbox" name="is_pinned" class="form-check-input"
+                                       id="isPinned"
+                                       {% if post and post.is_pinned %}checked{% endif %}>
+                                <label class="form-check-label" for="isPinned">
+                                    Ưu tiên hiển thị
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <hr>
+                            <label class="form-label">
+                                <i class="bi bi-eye"></i> Hiển thị cho
+                            </label>
+                            <div class="form-check">
+                                <input type="radio" name="visibility" value="ALL"
+                                       class="form-check-input" id="visAll"
+                                       {% if not post or post.visibility == "ALL" %}checked{% endif %}
+                                       onchange="toggleRoles()">
+                                <label class="form-check-label" for="visAll">
+                                    Tất cả mọi người
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" name="visibility" value="ROLES"
+                                       class="form-check-input" id="visRoles"
+                                       {% if post and post.visibility == "ROLES" %}checked{% endif %}
+                                       onchange="toggleRoles()">
+                                <label class="form-check-label" for="visRoles">
+                                    Chỉ một số vai trò
+                                </label>
+                            </div>
+
+                            <div id="rolesBox" class="mt-2 p-3 bg-light rounded"
+                                 style="display: {% if post and post.visibility == 'ROLES' %}block{% else %}none{% endif %};">
+                                <small class="text-muted">Chọn vai trò được xem:</small>
+                                <div class="row">
+                                    {% set selected_roles = (post.visible_role_codes or "").split(",") if post else [] %}
+                                    {% for r in ['ADMIN', 'KETOAN', 'BANHANG', 'THUKHO', 'MUAHANG', 'CHIXEM'] %}
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            <input type="checkbox" name="visible_roles" value="{{ r }}"
+                                                   class="form-check-input" id="r_{{ r }}"
+                                                   {% if r in selected_roles %}checked{% endif %}>
+                                            <label class="form-check-label" for="r_{{ r }}">{{ r }}</label>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <input type="hidden" name="visible_role_codes" id="visibleRoleCodes"
+                                   value="{{ post.visible_role_codes if post else '' }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="bi bi-save"></i> {{ "Cập nhật" if is_edit else "Tạo bài viết" }}
+            </button>
+            <a href="/internal/" class="btn btn-secondary btn-lg">Hủy</a>
+        </form>
+
+        <!-- Upload file (chỉ hiện khi sửa) -->
+        {% if is_edit %}
+        <div class="card mt-3">
+            <div class="card-header bg-secondary text-white">
+                <i class="bi bi-paperclip"></i> Tệp đính kèm
+            </div>
+            <div class="card-body">
+                <div id="attachmentList">
+                    {% for att in attachments %}
+                    <div class="attachment-item" id="att-{{ att.id }}">
+                        <div class="attachment-icon">
+                            {% if att.file_type == "IMAGE" %}
+                            <i class="bi bi-file-image text-success"></i>
+                            {% elif att.file_type == "PDF" %}
+                            <i class="bi bi-file-pdf text-danger"></i>
+                            {% elif att.file_type == "TEXT" %}
+                            <i class="bi bi-file-text text-info"></i>
+                            {% else %}
+                            <i class="bi bi-file-earmark text-secondary"></i>
+                            {% endif %}
+                        </div>
+                        <div class="attachment-name">
+                            <a href="{{ get_file_url(att) }}" target="_blank">{{ att.original_name }}</a>
+                            <div class="text-muted small">{{ format_file_size(att.file_size) }}</div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger"
+                                onclick="deleteAttachment({{ att.id }})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="upload-zone mt-2" onclick="document.getElementById('fileInput').click()">
+                    <i class="bi bi-cloud-upload" style="font-size: 2rem; color: #6c757d;"></i>
+                    <p class="mb-0 mt-2">Click để chọn file hoặc kéo thả</p>
+                    <small class="text-muted">
+                        Hỗ trợ: JPG, PNG, GIF, PDF, TXT, CSV (tối đa 10MB)
+                    </small>
+                </div>
+                <input type="file" id="fileInput" style="display:none;"
+                       accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.csv"
+                       onchange="uploadFile(this.files[0])">
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-info mt-3">
+            <i class="bi bi-info-circle"></i>
+            <strong>Lưu ý:</strong> Sau khi tạo bài viết, bạn có thể upload file đính kèm.
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="card sticky-top" style="top: 70px;">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-lightbulb"></i> Hướng dẫn
+            </div>
+            <div class="card-body">
+                <ul class="small mb-0">
+                    <li><strong>Nháp:</strong> chỉ tác giả thấy, dùng để soạn trước.</li>
+                    <li><strong>Đã đăng:</strong> mọi người trong hệ thống đọc được.</li>
+                    <li><strong>Nội quy:</strong> bài ở danh mục "Nội quy" sẽ yêu cầu user xác nhận đọc.</li>
+                    <li><strong>Tags:</strong> giúp filter nhanh, VD <code>#quan-trong</code>.</li>
+                    <li><strong>Ghim:</strong> bài ghim luôn hiện đầu DS.</li>
+                    <li><strong>Vai trò:</strong> bài ẩn chỉ hiện cho vai trò chọn.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.attachment-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px; border: 1px solid #dee2e6;
+    border-radius: 6px; margin-bottom: 8px;
+}
+.attachment-icon { font-size: 1.5rem; width: 40px; text-align: center; }
+.attachment-name { flex: 1; word-break: break-all; }
+.upload-zone {
+    border: 2px dashed #dee2e6; border-radius: 8px;
+    padding: 20px; text-align: center; cursor: pointer;
+}
+.upload-zone:hover { border-color: #0d6efd; background: #f0f7ff; }
+</style>
+
+<script>
+function toggleRoles() {
+    const vis = document.querySelector('input[name="visibility"]:checked').value;
+    document.getElementById('rolesBox').style.display =
+        vis === 'ROLES' ? 'block' : 'none';
+}
+
+// Cập nhật hidden input khi submit
+document.querySelector('form').addEventListener('submit', function() {
+    const vis = document.querySelector('input[name="visibility"]:checked').value;
+    if (vis === 'ROLES') {
+        const checked = Array.from(
+            document.querySelectorAll('input[name="visible_roles"]:checked')
+        ).map(c => c.value).join(',');
+        document.getElementById('visibleRoleCodes').value = checked;
+    } else {
+        document.getElementById('visibleRoleCodes').value = '';
+    }
+});
+
+// Upload file
+async function uploadFile(file) {
+    if (!file) return;
+    const postId = {{ post.id if post else 'null' }};
+    if (!postId) { alert('Lưu bài viết trước khi upload'); return; }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const res = await fetch('/internal/posts/' + postId + '/upload', {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await res.json();
+        if (data.success) {
+            const att = data.attachment;
+            let iconClass = 'bi-file-earmark text-secondary';
+            if (att.file_type === 'IMAGE') iconClass = 'bi-file-image text-success';
+            else if (att.file_type === 'PDF') iconClass = 'bi-file-pdf text-danger';
+            else if (att.file_type === 'TEXT') iconClass = 'bi-file-text text-info';
+
+            const html = `
+                <div class="attachment-item" id="att-${att.id}">
+                    <div class="attachment-icon"><i class="bi ${iconClass}"></i></div>
+                    <div class="attachment-name">
+                        <a href="${att.url}" target="_blank">${att.original_name}</a>
+                        <div class="text-muted small">${att.file_size_text}</div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger"
+                            onclick="deleteAttachment(${att.id})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            `;
+            document.getElementById('attachmentList').insertAdjacentHTML('beforeend', html);
+            document.getElementById('fileInput').value = '';
+        } else {
+            alert('Lỗi: ' + data.message);
+        }
+    } catch(e) {
+        alert('Lỗi kết nối: ' + e);
+    }
+}
+
+async function deleteAttachment(aid) {
+    if (!confirm('Xóa file này?')) return;
+    try {
+        const res = await fetch('/internal/attachments/' + aid + '/delete', {
+            method: 'POST',
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('att-' + aid).remove();
+        } else {
+            alert('Lỗi: ' + data.message);
+        }
+    } catch(e) { alert('Lỗi: ' + e); }
+}
+</script>
+{% endblock %}

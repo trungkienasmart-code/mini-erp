@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}{{ "Sửa" if is_edit else "Thêm" }} danh mục{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>
+        <i class="bi bi-tag"></i>
+        {{ "Sửa danh mục" if is_edit else "Thêm danh mục mới" }}
+    </h2>
+    <a href="/internal/categories" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post"
+                      action="{{ '/internal/categories/' + category.id|string + '/update' if is_edit else '/internal/categories/create' }}">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Mã danh mục <span class="text-danger">*</span></label>
+                            {% if is_edit %}
+                            <input type="text" class="form-control" disabled
+                                   value="{{ category.code }}">
+                            <small class="text-muted">Không đổi được mã</small>
+                            {% else %}
+                            <input type="text" name="code" class="form-control" required
+                                   pattern="[A-Z0-9_]{2,50}" value=""
+                                   placeholder="VD: NHATKY_CA"
+                                   oninput="this.value = this.value.toUpperCase()">
+                            <small class="text-muted">CHỮ IN HOA + số + _</small>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-8">
+                            <label class="form-label">Tên danh mục <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" required
+                                   value="{{ category.name if category else '' }}">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Mô tả</label>
+                            <input type="text" name="description" class="form-control"
+                                   value="{{ category.description if category else '' }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                <i class="bi bi-palette"></i> Màu
+                            </label>
+                            <input type="color" name="color" class="form-control form-control-color"
+                                   value="{{ category.color if category else '#6c757d' }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                <i class="bi bi-emoji-smile"></i> Icon (Bootstrap)
+                            </label>
+                            <input type="text" name="icon" class="form-control"
+                                   value="{{ category.icon if category else 'bi-folder' }}"
+                                   placeholder="bi-folder">
+                            <small class="text-muted">
+                                Xem tại <a href="https://icons.getbootstrap.com/" target="_blank">icons.getbootstrap.com</a>
+                            </small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Thứ tự hiển thị</label>
+                            <input type="number" name="order_index" class="form-control"
+                                   value="{{ category.order_index if category else 0 }}"
+                                   min="0">
+                            <small class="text-muted">Số nhỏ hiện trước</small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Tùy chọn</label>
+                            <div class="form-check form-switch mt-2">
+                                <input type="checkbox" name="is_require_read"
+                                       class="form-check-input" id="reqRead"
+                                       {% if category and category.is_require_read %}checked{% endif %}>
+                                <label class="form-check-label" for="reqRead">
+                                    <strong>Bắt buộc đọc</strong>
+                                    <i class="bi bi-info-circle" title="User phải xác nhận đã đọc bài viết trong danh mục này"></i>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> {{ "Cập nhật" if is_edit else "Thêm mới" }}
+                    </button>
+                    <a href="/internal/categories" class="btn btn-secondary">Hủy</a>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h6><i class="bi bi-info-circle"></i> Preview</h6>
+                <div class="mt-2 p-2 bg-white rounded d-flex align-items-center">
+                    <i class="bi {{ category.icon if category else 'bi-folder' }} me-2"
+                       style="color: {{ category.color if category else '#6c757d' }}; font-size: 1.2rem;"
+                       id="previewIcon"></i>
+                    <span id="previewName">{{ category.name if category else 'Tên danh mục' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-warning mt-3 small">
+            <strong>Bắt buộc đọc</strong> dùng cho danh mục "Nội quy", "Chính sách" — user phải
+            xác nhận đọc trước khi sử dụng hệ thống.
+        </div>
+    </div>
+</div>
+
+<script>
+// Live preview
+document.querySelector('input[name="name"]').addEventListener('input', function() {
+    document.getElementById('previewName').textContent = this.value || 'Tên danh mục';
+});
+document.querySelector('input[name="icon"]').addEventListener('input', function() {
+    document.getElementById('previewIcon').className = 'bi ' + (this.value || 'bi-folder') + ' me-2';
+});
+document.querySelector('input[name="color"]').addEventListener('input', function() {
+    document.getElementById('previewIcon').style.color = this.value;
+});
+</script>
+{% endblock %}

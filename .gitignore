@@ -19,3 +19,8 @@ Thumbs.db
 
 # Env
 .env
+
+.secret_key
+
+app/static/uploads/internal/*
+!app/static/uploads/internal/.gitkeep
