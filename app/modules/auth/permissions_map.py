@@ -93,6 +93,10 @@ _ROUTE_MAP = [
     ("/settings/api", None),
     ("/settings/", "accounting.settings.edit"),
     ("/settings", "accounting.settings.edit"),
+    # === BACKUP ===
+    ("/backup/api", None),
+    ("/backup/", "accounting.settings.edit"),
+    ("/backup", "accounting.settings.edit"),
 ]
 
 # Sắp xếp theo độ dài prefix giảm dần (match cái cụ thể trước)

@@ -27,3 +27,6 @@ app/static/uploads/internal/*
 
 app/static/uploads/logo/*
 !app/static/uploads/logo/.gitkeep
+
+backups/*
+!backups/.gitkeep

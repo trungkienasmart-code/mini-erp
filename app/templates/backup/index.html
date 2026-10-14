@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Sao lưu & Phục hồi{% endblock %}
+
+{% block content %}
+<h2 class="mb-3"><i class="bi bi-cloud-arrow-down-fill"></i> Sao lưu & Phục hồi</h2>
+
+{% include "backup/_tabs.html" %}
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- Trạng thái backup -->
+<div class="alert alert-{{ status.urgency }} d-flex align-items-center mb-4">
+    <i class="bi bi-{% if status.urgency == 'danger' %}exclamation-triangle-fill{% elif status.urgency == 'warning' %}info-circle-fill{% else %}check-circle-fill{% endif %}"
+       style="font-size: 2rem; margin-right: 15px;"></i>
+    <div class="flex-grow-1">
+        <strong>{{ status.message }}</strong>
+        <div class="small mt-1">
+            Khuyến nghị: <strong>Sao lưu 1 tuần/lần</strong>.
+            Bạn nên lưu file backup lên Google Drive để tránh mất dữ liệu khi máy hỏng.
+        </div>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+        <i class="bi bi-plus-circle"></i> Sao lưu ngay
+    </button>
+</div>
+
+<!-- 4 thẻ thống kê -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <small class="text-muted">Số bản backup</small>
+                <h3 class="text-primary mb-0">{{ stats.count }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body">
+                <small class="text-muted">Tổng dung lượng</small>
+                <h3 class="text-info mb-0">{{ "%.1f"|format(stats.total_size_mb) }} MB</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body">
+                <small class="text-muted">Backup gần nhất</small>
+                {% if stats.latest %}
+                <h5 class="text-success mb-0">
+                    {{ stats.latest.created_at.strftime("%d/%m/%Y") }}
+                </h5>
+                <small>{{ stats.latest.created_at.strftime("%H:%M") }}</small>
+                {% else %}
+                <h5 class="text-muted mb-0">Chưa có</h5>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body">
+                <small class="text-muted">Số ngày từ backup cuối</small>
+                {% if status.days_since_last is not none %}
+                <h3 class="text-warning mb-0">{{ status.days_since_last }}</h3>
+                <small>ngày</small>
+                {% else %}
+                <h3 class="text-muted mb-0">—</h3>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 2 cột: DS backup + Hướng dẫn -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-list-ul"></i> Danh sách backup ({{ backups|length }})
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tên file</th>
+                            <th>Ngày tạo</th>
+                            <th class="text-end">Dung lượng</th>
+                            <th>Ghi chú</th>
+                            <th class="text-center" style="width: 180px;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in backups %}
+                        <tr>
+                            <td><small><code>{{ b.name }}</code></small></td>
+                            <td>
+                                <small>{{ b.created_at.strftime("%d/%m/%Y %H:%M") }}</small>
+                            </td>
+                            <td class="text-end">{{ "%.1f"|format(b.size_mb) }} MB</td>
+                            <td><small>{{ b.note or "—" }}</small></td>
+                            <td class="text-center">
+                                <a href="/backup/{{ b.name }}/download"
+                                   class="btn btn-sm btn-outline-success" title="Tải về">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                                <form method="post" action="/backup/{{ b.name }}/restore"
+                                      class="d-inline"
+                                      onsubmit="return confirm('⚠️ PHỤC HỒI từ backup này?\n\n• Database hiện tại sẽ bị GHI ĐÈ\n• Toàn bộ dữ liệu sẽ trở về thời điểm backup\n• Hệ thống cần KHỞI ĐỘNG LẠI sau khi phục hồi\n\nBạn có chắc chắn?')">
+                                    <button class="btn btn-sm btn-outline-warning" title="Phục hồi">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                </form>
+                                <form method="post" action="/backup/{{ b.name }}/delete"
+                                      class="d-inline"
+                                      onsubmit="return confirm('Xóa file backup này?')">
+                                    <button class="btn btn-sm btn-outline-danger" title="Xóa">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">
+                            Chưa có backup nào. Bấm "Sao lưu ngay" để tạo.
+                        </td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-google"></i> Backup lên Google Drive
+            </div>
+            <div class="card-body">
+                <p class="small mb-2"><strong>Cách 1: Thủ công (đơn giản)</strong></p>
+                <ol class="small ps-3 mb-3">
+                    <li>Bấm <i class="bi bi-download"></i> <strong>Tải về</strong> file backup.</li>
+                    <li>Mở <a href="https://drive.google.com" target="_blank">drive.google.com</a>.</li>
+                    <li>Kéo thả file vào thư mục <code>Mini ERP Backup</code>.</li>
+                </ol>
+
+                <p class="small mb-2"><strong>Cách 2: Tự động (nâng cao)</strong></p>
+                <ol class="small ps-3 mb-0">
+                    <li>Tải <strong>Google Drive Desktop</strong> về máy.</li>
+                    <li>Đăng nhập tài khoản Google của bạn.</li>
+                    <li>Cấu hình thư mục backup của Mini ERP nằm trong ổ <code>Google Drive</code>.</li>
+                    <li>Mọi backup sẽ được tự đồng bộ lên cloud.</li>
+                </ol>
+
+                <a href="https://www.google.com/drive/download/"
+                   target="_blank"
+                   class="btn btn-sm btn-outline-success w-100 mt-3">
+                    <i class="bi bi-download"></i> Tải Google Drive Desktop
+                </a>
+            </div>
+        </div>
+
+        <div class="card bg-light">
+            <div class="card-body">
+                <h6><i class="bi bi-lightbulb"></i> Mẹo an toàn</h6>
+                <ul class="small mb-0 ps-3">
+                    <li>Nên có <strong>ít nhất 3 bản backup</strong> gần nhất.</li>
+                    <li>Lưu <strong>2 nơi</strong>: máy tính + Google Drive.</li>
+                    <li>Backup trước khi <strong>cập nhật phiên bản mới</strong>.</li>
+                    <li>Kiểm tra file backup <strong>mở được</strong> sau khi tạo.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal tạo backup -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="/backup/create">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-hdd"></i> Tạo backup mới
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info small">
+                        <i class="bi bi-info-circle"></i>
+                        Backup bao gồm: <strong>toàn bộ database + file uploads + secret key</strong>.
+                        Dung lượng khoảng <strong>0.5-5 MB</strong> tùy lượng dữ liệu.
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Ghi chú (tùy chọn)</label>
+                        <input type="text" name="note" class="form-control"
+                               placeholder="VD: Backup trước khi cập nhật v1.1"
+                               autofocus>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Tạo backup
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto open modal nếu chưa có backup nào
+{% if not backups %}
+document.addEventListener('DOMContentLoaded', function() {
+    // Không tự mở, chỉ hiện alert
+});
+{% endif %}
+</script>
+{% endblock %}
