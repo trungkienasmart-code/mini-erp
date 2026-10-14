@@ -33,6 +33,7 @@ IMPORT_TYPES = {
         "color": "primary",
         "description": "Import danh sách sản phẩm + tự tạo ngành hàng",
         "headers": services.PRODUCT_HEADERS,
+        "supported": True,
     },
     "suppliers": {
         "name": "Nhà cung cấp",
@@ -40,13 +41,23 @@ IMPORT_TYPES = {
         "color": "danger",
         "description": "Import danh sách nhà cung cấp",
         "headers": services.SUPPLIER_HEADERS,
+        "supported": True,
+    },
+    "categories": {
+        "name": "Ngành hàng",
+        "icon": "bi-tags",
+        "color": "purple",
+        "description": "Import danh sách ngành hàng (danh mục)",
+        "headers": services.CATEGORY_HEADERS,
+        "supported": True,
     },
     "purchase": {
         "name": "Đơn mua hàng",
         "icon": "bi-cart-plus",
         "color": "warning",
         "description": "Import đơn mua hàng (ở trạng thái Nháp)",
-        "headers": [],
+        "headers": ["(file có 2 sheet: Đơn mua + Chi tiết)"],
+        "supported": True,   # ← Đổi từ False → True
     },
 }
 
@@ -95,13 +106,18 @@ def download_template(
     import_type: str,
     user=Depends(require_login),
 ):
-    """Tải file template Excel theo loại."""
     if import_type == "products":
         data = services.generate_products_template()
         filename = "template_san_pham.xlsx"
     elif import_type == "suppliers":
         data = services.generate_suppliers_template()
-        filename = f"template_nha_cung_cap.xlsx"
+        filename = "template_nha_cung_cap.xlsx"
+    elif import_type == "categories":
+        data = services.generate_categories_template()
+        filename = "template_nganh_hang.xlsx"
+    elif import_type == "purchase":
+        data = services.generate_purchase_template()
+        filename = "template_don_mua.xlsx"
     else:
         return _redirect_with_msg("/import/", "error", f"Loại '{import_type}' chưa hỗ trợ")
 
@@ -151,7 +167,14 @@ async def upload_process(
     if import_type not in IMPORT_TYPES:
         return _redirect_with_msg("/import/", "error", "Loại import không hợp lệ")
 
-    # Validate
+    type_info = IMPORT_TYPES[import_type]
+    if not type_info.get("supported"):
+        return _redirect_with_msg(
+            "/import/", "error",
+            f"Loại '{type_info['name']}' chưa được hỗ trợ"
+        )
+
+    # Validate file
     filename = file.filename or ""
     ext = Path(filename).suffix.lower()
     if ext not in (".xlsx", ".xls"):
@@ -169,7 +192,6 @@ async def upload_process(
             f"File vượt quá {services.MAX_FILE_SIZE // 1024 // 1024}MB"
         )
 
-    # Cleanup file cũ
     _cleanup_old_temp_files()
 
     # Lưu file temp
@@ -178,45 +200,60 @@ async def upload_process(
     with open(temp_file, "wb") as f:
         f.write(content)
 
-    # Parse
+        # Parse + Validate theo loại
     if import_type == "products":
         rows, msg = services.parse_excel(content, services.PRODUCT_HEADERS)
+        if msg != "OK":
+            temp_file.unlink()
+            return _redirect_with_msg(f"/import/upload/{import_type}", "error", msg)
+        if not rows:
+            temp_file.unlink()
+            return _redirect_with_msg(
+                f"/import/upload/{import_type}", "error", "File không có dữ liệu"
+            )
+        validated, summary = services.validate_products(session, rows)
+
     elif import_type == "suppliers":
         rows, msg = services.parse_excel(content, services.SUPPLIER_HEADERS)
+        if msg != "OK":
+            temp_file.unlink()
+            return _redirect_with_msg(f"/import/upload/{import_type}", "error", msg)
+        if not rows:
+            temp_file.unlink()
+            return _redirect_with_msg(
+                f"/import/upload/{import_type}", "error", "File không có dữ liệu"
+            )
+        validated, summary = services.validate_suppliers(session, rows)
+
+    elif import_type == "categories":
+        rows, msg = services.parse_excel(content, services.CATEGORY_HEADERS)
+        if msg != "OK":
+            temp_file.unlink()
+            return _redirect_with_msg(f"/import/upload/{import_type}", "error", msg)
+        if not rows:
+            temp_file.unlink()
+            return _redirect_with_msg(
+                f"/import/upload/{import_type}", "error", "File không có dữ liệu"
+            )
+        validated, summary = services.validate_categories(session, rows)
+
+    elif import_type == "purchase":
+        orders, msg = services.parse_purchase_excel(content)
+        if msg != "OK":
+            temp_file.unlink()
+            return _redirect_with_msg(f"/import/upload/{import_type}", "error", msg)
+        if not orders:
+            temp_file.unlink()
+            return _redirect_with_msg(
+                f"/import/upload/{import_type}", "error", "File không có đơn nào"
+            )
+        validated, summary = services.validate_purchase(session, orders)
+
     else:
-        return _redirect_with_msg(
-            f"/import/upload/{import_type}",
-            "error",
-            "Chưa hỗ trợ loại import này"
-        )
-
-    if msg != "OK":
         temp_file.unlink()
         return _redirect_with_msg(
-            f"/import/upload/{import_type}",
-            "error",
-            msg
+            f"/import/upload/{import_type}", "error", "Chưa hỗ trợ"
         )
-
-    if not rows:
-        temp_file.unlink()
-        return _redirect_with_msg(
-            f"/import/upload/{import_type}",
-            "error",
-            "File không có dữ liệu"
-        )
-
-    # Validate + preview
-    if import_type == "products":
-        validated, summary = services.validate_products(session, rows)
-    elif import_type == "suppliers":
-        # Placeholder cho Buổi 3B
-        validated, summary = [], {"total": 0, "create": 0, "update": 0, "error": 0}
-
-    # Lưu kết quả validate vào session JSON (để confirm dùng lại)
-    # ⚠️ Không lưu cả file — chỉ lưu tên temp + validated data
-
-    type_info = IMPORT_TYPES[import_type]
 
     return templates.TemplateResponse(
         request=request,
@@ -248,54 +285,100 @@ async def confirm_import(
     if import_type not in IMPORT_TYPES:
         return _redirect_with_msg("/import/", "error", "Loại import không hợp lệ")
 
-    # Kiểm tra file temp tồn tại
     temp_file = TEMP_DIR / f"{temp_id}.xlsx"
     if not temp_file.exists():
         return _redirect_with_msg(
-            "/import/",
-            "error",
+            "/import/", "error",
             "File tạm không tồn tại hoặc đã hết hạn. Vui lòng upload lại."
         )
 
-    # Đọc lại file
     content = temp_file.read_bytes()
 
-    # Parse + Validate lại (đảm bảo an toàn)
+    from app.modules.auth.services import write_audit
+
+    # === SẢN PHẨM ===
     if import_type == "products":
         rows, msg = services.parse_excel(content, services.PRODUCT_HEADERS)
         if msg != "OK":
             return _redirect_with_msg(f"/import/upload/{import_type}", "error", msg)
-
         validated, _ = services.validate_products(session, rows)
         created, updated, errors = services.import_products(session, validated)
 
-        # Audit log
-        from app.modules.auth.services import write_audit
         write_audit(
             session, user.id, "IMPORT", "product", None,
-            description=f"Import {created} sản phẩm mới, {updated} cập nhật",
+            description=f"Import SP: {created} mới, {updated} cập nhật",
             ip=request.client.host if request.client else "",
         )
         session.commit()
 
-        # Xóa file temp
-        try:
-            temp_file.unlink()
-        except Exception:
-            pass
+        msg_out = f"✅ Import thành công: {created} sản phẩm mới, {updated} cập nhật"
 
-        msg = f"✅ Import thành công: {created} sản phẩm mới, {updated} cập nhật"
-        if errors:
-            msg += f". Có {len(errors)} lỗi nhỏ."
+    # === NHÀ CUNG CẤP ===
+    elif import_type == "suppliers":
+        rows, msg = services.parse_excel(content, services.SUPPLIER_HEADERS)
+        if msg != "OK":
+            return _redirect_with_msg(f"/import/upload/{import_type}", "error", msg)
+        validated, _ = services.validate_suppliers(session, rows)
+        created, updated, errors = services.import_suppliers(session, validated)
 
-        return _redirect_with_msg("/import/", "success", msg)
+        write_audit(
+            session, user.id, "IMPORT", "supplier", None,
+            description=f"Import NCC: {created} mới, {updated} cập nhật",
+            ip=request.client.host if request.client else "",
+        )
+        session.commit()
+
+        msg_out = f"✅ Import thành công: {created} NCC mới, {updated} cập nhật"
+
+    # === NGÀNH HÀNG ===
+    elif import_type == "categories":
+        rows, msg = services.parse_excel(content, services.CATEGORY_HEADERS)
+        if msg != "OK":
+            return _redirect_with_msg(f"/import/upload/{import_type}", "error", msg)
+        validated, summary = services.validate_categories(session, rows)
+        created, errors = services.import_categories(session, validated)
+
+        skipped = summary.get("create", 0) - created if summary else 0
+        write_audit(
+            session, user.id, "IMPORT", "category", None,
+            description=f"Import ngành hàng: {created} mới",
+            ip=request.client.host if request.client else "",
+        )
+        session.commit()
+
+        msg_out = f"✅ Import thành công: {created} ngành hàng mới"
+    # === ĐƠN MUA HÀNG ===
+    elif import_type == "purchase":
+        orders, msg = services.parse_purchase_excel(content)
+        if msg != "OK":
+            return _redirect_with_msg(f"/import/upload/{import_type}", "error", msg)
+        validated, _ = services.validate_purchase(session, orders)
+        created, line_count, errors = services.import_purchase(
+            session, validated, user_id=user.id,
+        )
+
+        write_audit(
+            session, user.id, "IMPORT", "purchase_order", None,
+            description=f"Import đơn mua: {created} đơn, {line_count} dòng SP",
+            ip=request.client.host if request.client else "",
+        )
+        session.commit()
+
+        msg_out = f"✅ Import thành công: {created} đơn mua ({line_count} dòng SP). Trạng thái: Nháp"
 
     else:
-        return _redirect_with_msg(
-            "/import/",
-            "error",
-            "Loại import này chưa được hỗ trợ"
-        )
+        return _redirect_with_msg("/import/", "error", "Loại import không được hỗ trợ")
+
+    # Xóa file temp
+    try:
+        temp_file.unlink()
+    except Exception:
+        pass
+
+    if errors:
+        msg_out += f". Có {len(errors)} lỗi nhỏ."
+
+    return _redirect_with_msg("/import/", "success", msg_out)
 
 
 # ============================================================

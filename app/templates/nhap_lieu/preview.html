@@ -56,6 +56,51 @@
 </div>
 
 <!-- Bảng preview -->
+{% if import_type == "purchase" %}
+<!-- PREVIEW ĐƠN MUA -->
+<div class="card mb-4">
+    <div class="card-header bg-secondary text-white">
+        <i class="bi bi-receipt"></i> Danh sách đơn mua ({{ rows|length }} đơn)
+    </div>
+    <div class="card-body">
+        {% for r in rows %}
+        <div class="card mb-2 {% if r.action == 'ERROR' %}border-danger{% elif r.action == 'CREATE' %}border-success{% endif %}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">
+                            {% if r.action == "CREATE" %}
+                            <span class="badge bg-success">Tạo mới</span>
+                            {% elif r.action == "ERROR" %}
+                            <span class="badge bg-danger">Lỗi</span>
+                            {% endif %}
+                            <strong>{{ r.code }}</strong>
+                        </h6>
+                        <small class="text-muted">
+                            NCC: <strong>{{ r.supplier_name }}</strong> ({{ r.supplier_code }})
+                            {% if r.invoice_no != "—" %} · Số HĐ: {{ r.invoice_no }}{% endif %}
+                            · {{ r.valid_line_count }}/{{ r.line_count }} dòng SP hợp lệ
+                        </small>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-muted small">Tạm tính: {{ "{:,.0f}".format(r.subtotal) }}đ</div>
+                        <div class="text-muted small">VAT: {{ "{:,.0f}".format(r.tax_total) }}đ</div>
+                        <h5 class="mb-0 text-danger">{{ "{:,.0f}".format(r.total) }}đ</h5>
+                    </div>
+                </div>
+                {% if r.errors %}
+                <div class="alert alert-danger mt-2 mb-0 small">
+                    {% for e in r.errors %}• {{ e }}<br>{% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% else %}
+<!-- PREVIEW SP/NCC/NGÀNH HÀNG -->
 <div class="card mb-4">
     <div class="card-header bg-secondary text-white">
         <i class="bi bi-table"></i> Chi tiết dữ liệu ({{ rows|length }} dòng)
@@ -76,13 +121,24 @@
                         <th class="text-end">Giá nhập</th>
                         <th class="text-end">Giá bán</th>
                         <th class="text-center">VAT</th>
+                        {% elif import_type == "suppliers" %}
+                        <th>Mã NCC</th>
+                        <th>Tên NCC</th>
+                        <th>SĐT</th>
+                        <th>Email</th>
+                        <th>Địa chỉ</th>
+                        <th>MST</th>
+                        <th class="text-center">Ngày nợ</th>
+                        {% elif import_type == "categories" %}
+                        <th>Tên ngành hàng</th>
+                        <th>Mô tả</th>
                         {% endif %}
                         <th>Lỗi</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for r in rows %}
-                    <tr class="{% if r.action == 'ERROR' %}table-danger{% elif r.action == 'CREATE' %}table-success{% elif r.action == 'UPDATE' %}table-warning{% endif %}">
+                    <tr class="{% if r.action == 'ERROR' %}table-danger{% elif r.action == 'CREATE' %}table-success{% elif r.action == 'UPDATE' %}table-warning{% elif r.action == 'SKIP' %}table-secondary{% endif %}">
                         <td class="text-center"><small>{{ r.row_num }}</small></td>
                         <td class="text-center">
                             {% if r.action == "CREATE" %}
@@ -91,6 +147,8 @@
                             <span class="badge bg-warning text-dark">Cập nhật</span>
                             {% elif r.action == "ERROR" %}
                             <span class="badge bg-danger">Lỗi</span>
+                            {% elif r.action == "SKIP" %}
+                            <span class="badge bg-secondary">Bỏ qua</span>
                             {% else %}
                             <span class="badge bg-secondary">{{ r.action }}</span>
                             {% endif %}
@@ -104,6 +162,17 @@
                         <td class="text-end"><small>{{ "{:,.0f}".format(r.cost_price) }}</small></td>
                         <td class="text-end"><small>{{ "{:,.0f}".format(r.price) }}</small></td>
                         <td class="text-center"><small>{{ r.tax_rate }}%</small></td>
+                        {% elif import_type == "suppliers" %}
+                        <td><strong>{{ r.code }}</strong></td>
+                        <td>{{ r.name }}</td>
+                        <td><small>{{ r.phone }}</small></td>
+                        <td><small>{{ r.email }}</small></td>
+                        <td><small>{{ r.address }}</small></td>
+                        <td><small>{{ r.tax_code }}</small></td>
+                        <td class="text-center"><small>{{ r.term_days }}</small></td>
+                        {% elif import_type == "categories" %}
+                        <td><strong>{{ r.name }}</strong></td>
+                        <td><small>{{ r.note }}</small></td>
                         {% endif %}
                         <td>
                             {% if r.errors %}
@@ -119,6 +188,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- Nút hành động -->
 <div class="card">

@@ -29,7 +29,7 @@
 
 <div class="row g-3">
     {% for type_key, info in import_types.items() %}
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card h-100 border-{{ info.color }}">
             <div class="card-body text-center">
                 <i class="bi {{ info.icon }} text-{{ info.color }}"
@@ -74,4 +74,30 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Custom purple color (Bootstrap không có sẵn) */
+.text-purple { color: #6f42c1 !important; }
+.border-purple { border-color: #6f42c1 !important; }
+.bg-purple { background-color: #6f42c1 !important; }
+.btn-purple {
+    background-color: #6f42c1;
+    border-color: #6f42c1;
+    color: white;
+}
+.btn-purple:hover {
+    background-color: #5a32a3;
+    border-color: #5a32a3;
+    color: white;
+}
+.btn-outline-purple {
+    color: #6f42c1;
+    border-color: #6f42c1;
+}
+.btn-outline-purple:hover {
+    background-color: #6f42c1;
+    border-color: #6f42c1;
+    color: white;
+}
+</style>
 {% endblock %}
