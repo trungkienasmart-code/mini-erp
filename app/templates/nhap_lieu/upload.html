@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Upload {{ type_info.name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi {{ type_info.icon }}"></i> Import {{ type_info.name }}</h2>
+    <a href="/import/" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Quay lại
+    </a>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post" action="/import/upload/{{ import_type }}"
+                      enctype="multipart/form-data">
+                    <div class="upload-zone" id="uploadZone">
+                        <i class="bi bi-cloud-upload" style="font-size: 4rem; color: #6c757d;"></i>
+                        <p class="mt-3 mb-1"><strong>Click để chọn file</strong> hoặc kéo thả</p>
+                        <p class="text-muted small mb-0">Chỉ chấp nhận file .xlsx (tối đa 5MB)</p>
+                        <input type="file" name="file" id="fileInput"
+                               accept=".xlsx,.xls"
+                               style="display:none;" required>
+                        <div id="fileName" class="mt-3 text-success fw-bold" style="display:none;"></div>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
+                            <i class="bi bi-upload"></i> Upload & Kiểm tra
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-download"></i> Bước 1: Tải template
+            </div>
+            <div class="card-body">
+                <p class="small">
+                    Tải file mẫu, điền dữ liệu theo đúng định dạng. Các cột:
+                </p>
+                <ul class="small mb-3">
+                    {% for h in type_info.headers %}
+                    <li><code>{{ h }}</code></li>
+                    {% endfor %}
+                </ul>
+                <a href="/import/template/{{ import_type }}" class="btn btn-outline-info w-100">
+                    <i class="bi bi-download"></i> Tải template
+                </a>
+            </div>
+        </div>
+
+        <div class="alert alert-warning mt-3 small">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <strong>Lưu ý:</strong> Xóa 2 dòng ví dụ trong template trước khi điền dữ liệu thật.
+        </div>
+    </div>
+</div>
+
+<style>
+.upload-zone {
+    border: 3px dashed #dee2e6;
+    border-radius: 12px;
+    padding: 60px 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.upload-zone:hover, .upload-zone.dragover {
+    border-color: #0d6efd;
+    background: #f0f7ff;
+}
+</style>
+
+<script>
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+const submitBtn = document.getElementById('submitBtn');
+const fileName = document.getElementById('fileName');
+
+uploadZone.addEventListener('click', () => fileInput.click());
+
+uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.classList.add('dragover');
+});
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        handleFile();
+    }
+});
+
+fileInput.addEventListener('change', handleFile);
+
+function handleFile() {
+    if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        fileName.textContent = '✓ ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+        fileName.style.display = 'block';
+        submitBtn.disabled = false;
+    }
+}
+</script>
+{% endblock %}
