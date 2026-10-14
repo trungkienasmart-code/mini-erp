@@ -825,11 +825,17 @@ def order_print(oid: int, request: Request, session: Session = Depends(get_sessi
         if p:
             product_dict[l.product_id] = p
 
+    # Lấy profile shop
+    from sqlmodel import select
+    from app.modules.ke_toan.models import HKDProfile
+    profile = session.exec(select(HKDProfile)).first()
+
     return templates.TemplateResponse(
         request=request, name="mua_hang/print_order.html",
         context={
             "order": order, "lines": lines,
             "supplier": supplier, "product_dict": product_dict,
+            "profile": profile,
         },
     )
 
@@ -848,11 +854,17 @@ def receipt_print(oid: int, request: Request, session: Session = Depends(get_ses
         if p:
             product_dict[l.product_id] = p
 
+    # Lấy profile shop
+    from sqlmodel import select
+    from app.modules.ke_toan.models import HKDProfile
+    profile = session.exec(select(HKDProfile)).first()
+
     return templates.TemplateResponse(
         request=request, name="mua_hang/print_receipt.html",
         context={
             "order": order, "lines": lines,
             "supplier": supplier, "product_dict": product_dict,
+            "profile": profile,
         },
     )
 
@@ -871,10 +883,16 @@ def return_print(rid: int, request: Request, session: Session = Depends(get_sess
         if p:
             product_dict[l.product_id] = p
 
+    # Lấy profile shop
+    from sqlmodel import select
+    from app.modules.ke_toan.models import HKDProfile
+    profile = session.exec(select(HKDProfile)).first()
+
     return templates.TemplateResponse(
         request=request, name="mua_hang/print_return.html",
         context={
             "ret": ret, "lines": lines,
             "supplier": supplier, "product_dict": product_dict,
+            "profile": profile,
         },
     )

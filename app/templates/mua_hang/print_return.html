@@ -30,15 +30,34 @@ th { background: #eee; }
 </div>
 
 <div class="header">
-    <div>
-        <h1>CỬA HÀNG MINI ERP</h1>
-        <div>123 Đường ABC, Q.1, TP.HCM</div>
-        <div>ĐT: 0900 000 000 — MST: 0123456789</div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+        {% if profile and profile.logo_path %}
+        <img src="{{ profile.logo_path }}" alt="Logo" style="max-height: 60px; max-width: 150px;">
+        {% endif %}
+        <div>
+            <h1>
+                {% if profile and profile.business_name %}
+                    {{ profile.business_name }}
+                {% else %}
+                    MINI ERP
+                {% endif %}
+            </h1>
+            {% if profile %}
+            {% if profile.address %}<div>{{ profile.address }}</div>{% endif %}
+            <div>
+                {% if profile.phone %}ĐT: {{ profile.phone }}{% endif %}
+                {% if profile.phone and profile.tax_code %} — {% endif %}
+                {% if profile.tax_code %}MST: {{ profile.tax_code }}{% endif %}
+            </div>
+            {% if profile.slogan %}<div style="font-style: italic; color: #555;">{{ profile.slogan }}</div>{% endif %}
+            {% endif %}
+        </div>
     </div>
     <div style="text-align:right;">
         <div class="bold">Số: {{ ret.code }}</div>
         <div>Ngày: {{ ret.created_at.strftime("%d/%m/%Y") }}</div>
         <div>Giờ: {{ ret.created_at.strftime("%H:%M") }}</div>
+        <div class="small" id="printTime">In lúc: ...</div>
     </div>
 </div>
 
@@ -114,6 +133,11 @@ th { background: #eee; }
         <div style="height: 60px;"></div>
     </div>
 </div>
+
+<script>
+    document.getElementById('printTime').textContent =
+        'In lúc: ' + new Date().toLocaleString('vi-VN');
+</script>
 
 </body>
 </html>
