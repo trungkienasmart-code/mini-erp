@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Cài đặt — Thông tin cửa hàng{% endblock %}
+
+{% block content %}
+<h2 class="mb-3"><i class="bi bi-gear-fill"></i> Cài đặt hệ thống</h2>
+
+{% include "settings/_tabs.html" %}
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-shop"></i> Thông tin cửa hàng
+            </div>
+            <div class="card-body">
+                <form method="post" action="/settings/save-shop">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label">
+                                Tên cửa hàng <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" name="business_name" class="form-control"
+                                   required value="{{ profile.business_name if profile else '' }}">
+                            <small class="text-muted">Tên này sẽ hiển thị trên navbar và hóa đơn</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Mã số thuế</label>
+                            <input type="text" name="tax_code" class="form-control"
+                                   value="{{ profile.tax_code if profile else '' }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Địa chỉ</label>
+                            <input type="text" name="address" class="form-control"
+                                   value="{{ profile.address if profile else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Điện thoại</label>
+                            <input type="text" name="phone" class="form-control"
+                                   value="{{ profile.phone if profile else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control"
+                                   value="{{ profile.email if profile else '' }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">
+                                <i class="bi bi-chat-quote"></i> Slogan
+                            </label>
+                            <input type="text" name="slogan" class="form-control"
+                                   placeholder="VD: Chất lượng - Uy tín - Tận tâm"
+                                   value="{{ profile.slogan if profile else '' }}">
+                            <small class="text-muted">Sẽ hiển thị trên bill/hóa đơn</small>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Lưu thông tin
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <i class="bi bi-image"></i> Logo cửa hàng
+            </div>
+            <div class="card-body text-center">
+                {% if profile and profile.logo_path %}
+                <img src="{{ profile.logo_path }}" alt="Logo"
+                     style="max-width: 200px; max-height: 200px; object-fit: contain;"
+                     class="mb-3 border rounded p-2 bg-white">
+                <form method="post" action="/settings/delete-logo" class="mb-2">
+                    <button class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash"></i> Xóa logo
+                    </button>
+                </form>
+                {% else %}
+                <div class="text-muted py-5">
+                    <i class="bi bi-image" style="font-size: 4rem;"></i>
+                    <p class="mt-2">Chưa có logo</p>
+                </div>
+                {% endif %}
+
+                <div class="mt-3">
+                    <input type="file" id="logoInput" style="display:none;"
+                           accept=".png,.jpg,.jpeg,.webp,.svg"
+                           onchange="uploadLogo(this.files[0])">
+                    <button class="btn btn-outline-primary w-100"
+                            onclick="document.getElementById('logoInput').click()">
+                        <i class="bi bi-cloud-upload"></i> Chọn logo
+                    </button>
+                    <small class="text-muted d-block mt-2">
+                        PNG, JPG, WEBP, SVG · Tối đa 2MB
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-info mt-3 small">
+            <i class="bi bi-info-circle"></i>
+            <strong>Mẹo:</strong> Logo tỷ lệ 1:1 (vuông) hiển thị đẹp nhất. Nền trắng hoặc trong suốt.
+        </div>
+    </div>
+</div>
+
+<script>
+async function uploadLogo(file) {
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const res = await fetch('/settings/upload-logo', {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await res.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Lỗi: ' + data.message);
+        }
+    } catch(e) {
+        alert('Lỗi kết nối: ' + e);
+    }
+}
+</script>
+{% endblock %}

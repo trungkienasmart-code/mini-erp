@@ -1,0 +1,20 @@
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'shop' %}active{% endif %}"
+           href="/settings/">
+            <i class="bi bi-shop"></i> Thông tin cửa hàng
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'network' %}active{% endif %}"
+           href="/settings/network">
+            <i class="bi bi-wifi"></i> Mạng LAN
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'bank' %}active{% endif %}"
+           href="/settings/bank">
+            <i class="bi bi-bank"></i> Ngân hàng & VietQR
+        </a>
+    </li>
+</ul>

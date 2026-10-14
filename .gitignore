@@ -24,3 +24,6 @@ Thumbs.db
 
 app/static/uploads/internal/*
 !app/static/uploads/internal/.gitkeep
+
+app/static/uploads/logo/*
+!app/static/uploads/logo/.gitkeep

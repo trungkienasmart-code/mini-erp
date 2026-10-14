@@ -88,6 +88,11 @@ _ROUTE_MAP = [
     ("/internal/posts", "internal.post.view"),
     ("/internal/attachments/", None),  # Download file — check riêng
     ("/internal", "internal.post.view"),
+    # === SETTINGS ===
+    ("/settings/bank-webhook", None),   # Webhook public — verify bằng signature
+    ("/settings/api", None),
+    ("/settings/", "accounting.settings.edit"),
+    ("/settings", "accounting.settings.edit"),
 ]
 
 # Sắp xếp theo độ dài prefix giảm dần (match cái cụ thể trước)

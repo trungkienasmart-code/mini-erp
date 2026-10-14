@@ -18,6 +18,8 @@ td.center { text-align: center; }
 .total-row { font-size: 14px; font-weight: bold; }
 .small { font-size: 10px; }
 .qr { text-align: center; margin: 8px 0; }
+.logo { max-height: 60px; max-width: 100%; margin: 5px auto; display: block; }
+.slogan { font-style: italic; font-size: 11px; color: #333; }
 @media print { .toolbar { display: none; } }
 .toolbar { padding: 10px; background: #f0f0f0; text-align: center; margin-bottom: 10px; }
 .toolbar button, .toolbar a { padding: 8px 15px; margin: 0 5px; }
@@ -31,9 +33,32 @@ td.center { text-align: center; }
     <button onclick="window.close()">✕ Đóng</button>
 </div>
 
-<h1>{{ APP_NAME if APP_NAME else "MINI ERP" }}</h1>
-<div class="center small">Cửa hàng của bạn</div>
-<div class="center small">ĐT: 0900 000 000</div>
+<!-- Logo (nếu có) -->
+{% if profile and profile.logo_path %}
+<img src="{{ profile.logo_path }}" alt="Logo" class="logo">
+{% endif %}
+
+<h1>
+    {% if profile and profile.business_name %}
+        {{ profile.business_name }}
+    {% else %}
+        MINI ERP
+    {% endif %}
+</h1>
+
+{% if profile and profile.slogan %}
+<div class="center slogan">{{ profile.slogan }}</div>
+{% endif %}
+
+{% if profile %}
+<div class="center small">
+    {% if profile.address %}ĐC: {{ profile.address }}<br>{% endif %}
+    {% if profile.phone %}ĐT: {{ profile.phone }}{% endif %}
+    {% if profile.phone and profile.tax_code %} — {% endif %}
+    {% if profile.tax_code %}MST: {{ profile.tax_code }}{% endif %}
+</div>
+{% endif %}
+
 <div class="line"></div>
 
 <div class="center bold">HÓA ĐƠN BÁN HÀNG</div>
@@ -92,17 +117,6 @@ td.center { text-align: center; }
     <tr><td>VAT:</td><td class="right">{{ "{:,.0f}".format(order.tax_amount) }}</td></tr>
 </table>
 
-<div class="line"></div>
-<table>
-    <tr>
-        <td>Tiền hàng:</td>
-        <td class="right">{{ "{:,.0f}".format(order.subtotal - order.discount_amount) }}</td>
-    </tr>
-    <tr>
-        <td>VAT:</td>
-        <td class="right">{{ "{:,.0f}".format(order.tax_amount) }}</td>
-    </tr>
-</table>
 <div class="line" style="border-top: 2px solid #000;"></div>
 <table>
     <tr class="total-row">
@@ -113,6 +127,7 @@ td.center { text-align: center; }
     </tr>
 </table>
 <div class="line" style="border-top: 2px solid #000;"></div>
+
 <table>
     <tr><td>Phương thức:</td><td class="right bold">
         {% if order.payment_method == "CASH" %}Tiền mặt
@@ -136,22 +151,35 @@ td.center { text-align: center; }
     {% endif %}
 </table>
 
+<!-- QR VIETQR -->
+{% if vietqr_url %}
 <div class="qr">
-    <div class="small">Quét mã để thanh toán CK</div>
-    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={{ order.code }}"
-         alt="QR" style="width: 100px; height: 100px;">
+    <div class="small"><strong>Quét QR để thanh toán</strong></div>
+    <img src="{{ vietqr_url }}" alt="VietQR"
+         style="width: 140px; height: 140px; margin-top: 5px;">
+    {% if profile %}
+    <div class="small">
+        {{ profile.bank_account_name }} — {{ profile.bank_account_no }}
+    </div>
+    {% endif %}
 </div>
+{% endif %}
 
 <div class="line"></div>
-<div class="center small">Cảm ơn Quý khách!<br>Hẹn gặp lại 🌟</div>
-<div class="center small" style="margin-top: 5px;">
-    Wifi: mini-erp<br>
-    Hotline: 0900 000 000
+<div class="center small">
+    Cảm ơn Quý khách!<br>
+    Hẹn gặp lại 🌟
 </div>
+{% if profile and profile.phone %}
+<div class="center small" style="margin-top: 5px;">
+    Hotline: {{ profile.phone }}
+</div>
+{% endif %}
 
 <script>
     document.getElementById('printTime').textContent =
         'In lúc: ' + new Date().toLocaleString('vi-VN');
 </script>
+
 </body>
 </html>

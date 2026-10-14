@@ -670,7 +670,24 @@ def order_print(oid: int, request: Request, size: str = "k80",
         if p:
             products_dict[l.product_id] = p
 
-    # Chọn template theo size
+    # Lấy thông tin shop + config
+    from sqlmodel import select
+    from app.modules.ke_toan.models import HKDProfile
+    profile = session.exec(select(HKDProfile)).first()
+
+    # Tạo URL VietQR nếu bật
+    vietqr_url = ""
+    if profile and profile.enable_vietqr and profile.bank_code and profile.bank_account_no:
+        from app.modules.settings.services import build_vietqr_url
+        vietqr_url = build_vietqr_url(
+            bank_code=profile.bank_code,
+            account_no=profile.bank_account_no,
+            account_name=profile.bank_account_name,
+            amount=order.total_amount,
+            description=f"TT {order.code}",
+        )
+
+    # Chọn template
     tpl = "ban_hang/print_k80.html" if size == "k80" else "ban_hang/print_a5.html"
 
     return templates.TemplateResponse(
@@ -678,6 +695,7 @@ def order_print(oid: int, request: Request, size: str = "k80",
         context={
             "order": order, "lines": lines, "customer": customer,
             "product_dict": products_dict, "size": size,
+            "profile": profile, "vietqr_url": vietqr_url,
         },
     )
 

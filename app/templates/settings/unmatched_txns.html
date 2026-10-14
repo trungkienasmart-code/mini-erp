@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Giao dịch chưa khớp{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2><i class="bi bi-exclamation-triangle"></i> Giao dịch CK chưa khớp</h2>
+    <a href="/settings/bank" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Về cài đặt
+    </a>
+</div>
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    Đây là các giao dịch CK vào tài khoản nhưng <strong>không tìm thấy mã đơn</strong>
+    trong nội dung, hoặc số tiền không khớp. Kiểm tra và xử lý thủ công.
+</div>
+
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+    <thead class="table-light">
+        <tr>
+            <th>Thời gian</th>
+            <th>Ngân hàng</th>
+            <th>Mã GD</th>
+            <th class="text-end">Số tiền</th>
+            <th>Nội dung CK</th>
+            <th>Mã đơn tìm được</th>
+            <th class="text-center">Trạng thái</th>
+            <th>Ghi chú</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for t in txns %}
+        <tr>
+            <td><small>{{ t.created_at.strftime("%d/%m/%y %H:%M") }}</small></td>
+            <td><span class="badge bg-secondary">{{ t.bank_code }}</span></td>
+            <td><small><code>{{ t.transaction_id }}</code></small></td>
+            <td class="text-end fw-bold text-success">+{{ "{:,.0f}".format(t.amount) }} đ</td>
+            <td><small>{{ t.content[:100] }}</small></td>
+            <td>
+                {% if t.matched_order_code %}
+                <code>{{ t.matched_order_code }}</code>
+                {% else %}—{% endif %}
+            </td>
+            <td class="text-center">
+                {% if t.status == "UNMATCHED" %}
+                <span class="badge bg-danger">Chưa khớp</span>
+                {% elif t.status == "PARTIAL" %}
+                <span class="badge bg-warning text-dark">Thiếu tiền</span>
+                {% endif %}
+            </td>
+            <td><small>{{ t.note }}</small></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">
+            Không có giao dịch nào chưa khớp 🎉
+        </td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

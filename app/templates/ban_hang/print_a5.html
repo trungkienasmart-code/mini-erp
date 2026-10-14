@@ -18,6 +18,8 @@ th { background: #eee; }
 .signature { display: flex; justify-content: space-around; margin-top: 20px; }
 .signature div { text-align: center; }
 .small { font-size: 10px; color: #555; }
+.logo { max-height: 80px; max-width: 200px; }
+.qr-box { text-align: center; margin: 10px 0; }
 @media print { .toolbar { display: none; } }
 .toolbar { padding: 10px; background: #f0f0f0; text-align: center; margin-bottom: 10px; }
 .toolbar button, .toolbar a { padding: 8px 15px; margin: 0 5px; }
@@ -32,17 +34,35 @@ th { background: #eee; }
 </div>
 
 <div class="header">
-    <div>
-        <h1>CỬA HÀNG MINI ERP</h1>
-        <div>Địa chỉ: 123 Đường ABC, Q.1, TP.HCM</div>
-        <div>ĐT: 0900 000 000 — MST: 0123456789</div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+        {% if profile and profile.logo_path %}
+        <img src="{{ profile.logo_path }}" alt="Logo" class="logo">
+        {% endif %}
+        <div>
+            <h1>
+                {% if profile and profile.business_name %}
+                    {{ profile.business_name }}
+                {% else %}
+                    CỬA HÀNG MINI ERP
+                {% endif %}
+            </h1>
+            {% if profile %}
+            {% if profile.address %}<div>{{ profile.address }}</div>{% endif %}
+            <div>
+                {% if profile.phone %}ĐT: {{ profile.phone }}{% endif %}
+                {% if profile.phone and profile.tax_code %} — {% endif %}
+                {% if profile.tax_code %}MST: {{ profile.tax_code }}{% endif %}
+            </div>
+            {% if profile.slogan %}<div class="small" style="font-style: italic;">{{ profile.slogan }}</div>{% endif %}
+            {% endif %}
+        </div>
     </div>
-    <    <div style="text-align:right;">
+    <div style="text-align:right;">
         <div class="bold">Số HĐ: {{ order.code }}</div>
         <div>Ngày: {{ order.created_at.strftime("%d/%m/%Y") }}</div>
         <div>Giờ: {{ order.created_at.strftime("%H:%M") }}</div>
         <div>Thu ngân: {{ "NV" + "%03d"|format(order.user_id or 1) }}</div>
-        <div id="printTimeA5" class="small">In lúc: ...</div>
+        <div class="small" id="printTimeA5">In lúc: ...</div>
     </div>
 </div>
 
@@ -51,22 +71,22 @@ th { background: #eee; }
 </div>
 
 <div>
-{% if order.want_vat_invoice and order.vat_company_name %}
-<div><strong>Đơn vị:</strong> {{ order.vat_company_name }}</div>
-<div><strong>MST:</strong> {{ order.vat_tax_code }}</div>
-<div><strong>Địa chỉ:</strong> {{ order.vat_address }}</div>
-{% if order.vat_email %}<div><strong>Email:</strong> {{ order.vat_email }}</div>{% endif %}
-{% if order.customer_phone or (customer and customer.phone) %}
-<div><strong>SĐT:</strong> {{ order.customer_phone or customer.phone }}</div>
-{% endif %}
-{% else %}
-<div><strong>Khách hàng:</strong> {{ customer.name if customer else "Khách lẻ" }}</div>
-{% if customer and customer.address %}<div><strong>Địa chỉ:</strong> {{ customer.address }}</div>{% endif %}
-{% if order.customer_phone or (customer and customer.phone) %}
-<div><strong>SĐT:</strong> {{ order.customer_phone or customer.phone }}</div>
-{% endif %}
-{% if customer and customer.tax_code %}<div><strong>MST:</strong> {{ customer.tax_code }}</div>{% endif %}
-{% endif %}
+    {% if order.want_vat_invoice and order.vat_company_name %}
+    <div><strong>Đơn vị:</strong> {{ order.vat_company_name }}</div>
+    <div><strong>MST:</strong> {{ order.vat_tax_code }}</div>
+    <div><strong>Địa chỉ:</strong> {{ order.vat_address }}</div>
+    {% if order.vat_email %}<div><strong>Email:</strong> {{ order.vat_email }}</div>{% endif %}
+    {% if order.customer_phone or (customer and customer.phone) %}
+    <div><strong>SĐT:</strong> {{ order.customer_phone or customer.phone }}</div>
+    {% endif %}
+    {% else %}
+    <div><strong>Khách hàng:</strong> {{ customer.name if customer else "Khách lẻ" }}</div>
+    {% if customer and customer.address %}<div><strong>Địa chỉ:</strong> {{ customer.address }}</div>{% endif %}
+    {% if order.customer_phone or (customer and customer.phone) %}
+    <div><strong>SĐT:</strong> {{ order.customer_phone or customer.phone }}</div>
+    {% endif %}
+    {% if customer and customer.tax_code %}<div><strong>MST:</strong> {{ customer.tax_code }}</div>{% endif %}
+    {% endif %}
 </div>
 
 <table>
@@ -116,6 +136,21 @@ th { background: #eee; }
     <em>Số tiền bằng chữ: ......................................................</em>
 </div>
 
+<!-- QR VIETQR -->
+{% if vietqr_url %}
+<div class="qr-box">
+    <div class="bold small">Quét QR để thanh toán chuyển khoản</div>
+    <img src="{{ vietqr_url }}" alt="VietQR"
+         style="width: 150px; height: 150px;">
+    {% if profile %}
+    <div class="small">
+        <strong>{{ profile.bank_account_name }}</strong> —
+        {{ profile.bank_code }}: {{ profile.bank_account_no }}
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 <div class="signature">
     <div>
         <div class="bold">Người mua hàng</div>
@@ -129,9 +164,14 @@ th { background: #eee; }
     </div>
 </div>
 
+<div class="small center" style="margin-top: 15px;">
+    Cảm ơn Quý khách đã ủng hộ!
+</div>
+
 <script>
     document.getElementById('printTimeA5').textContent =
         'In lúc: ' + new Date().toLocaleString('vi-VN');
 </script>
+
 </body>
 </html>

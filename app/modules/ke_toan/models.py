@@ -16,6 +16,24 @@ class HKDProfile(SQLModel, table=True):
     address: str = Field(default="", max_length=300)
     phone: str = Field(default="", max_length=30)
     email: str = Field(default="", max_length=100)
+    slogan: str = Field(default="", max_length=200)          # ← MỚI
+    logo_path: str = Field(default="", max_length=300)       # ← MỚI
+    lan_host_ip: str = Field(default="", max_length=50)      # ← MỚI
+    lan_port: int = Field(default=8000)                      # ← MỚI
+    
+    # === NGÂN HÀNG & VIETQR ===
+    bank_code: str = Field(default="", max_length=20)          # VCB, TCB, MB...
+    bank_account_no: str = Field(default="", max_length=50)
+    bank_account_name: str = Field(default="", max_length=200)
+    enable_vietqr: bool = Field(default=True)
+
+    # === WEBHOOK API (Casso / Sepay / PayOS) ===
+    webhook_provider: str = Field(default="NONE", max_length=20)  # NONE/CASSO/SEPAY/PAYOS
+    webhook_api_key: str = Field(default="", max_length=200)
+    webhook_secret: str = Field(default="", max_length=500)
+    webhook_enabled: bool = Field(default=False)
+
+    hkd_group: int = Field(default=1)
 
     # Nhóm HKD theo TT152/2025/TT-BTC
     # 1: DT < 500tr, không GTGT, không TNCN
@@ -179,3 +197,33 @@ class PeriodLock(SQLModel, table=True):
     closed_at: Optional[datetime] = Field(default=None)
     closed_by: Optional[int] = Field(default=None)
     note: str = Field(default="", max_length=300)
+    
+    # ============================================================
+# GIAO DỊCH NGÂN HÀNG (Webhook từ Casso/Sepay)
+# ============================================================
+class BankTransaction(SQLModel, table=True):
+    __tablename__ = "acc_bank_transaction"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+    # Thông tin giao dịch
+    transaction_id: str = Field(max_length=100, index=True)  # ID từ ngân hàng
+    bank_code: str = Field(default="", max_length=20)
+    account_no: str = Field(default="", max_length=50)
+
+    amount: float = Field(default=0.0)
+    content: str = Field(default="", max_length=500)  # Nội dung CK
+    transaction_date: Optional[datetime] = Field(default=None)
+
+    # Đối chiếu với đơn hàng
+    matched_order_id: Optional[int] = Field(default=None, index=True)
+    matched_order_code: str = Field(default="", max_length=50)
+    matched_at: Optional[datetime] = Field(default=None)
+
+    status: str = Field(default="UNMATCHED", max_length=20)
+    # UNMATCHED / MATCHED / PARTIAL / ERROR / IGNORED
+
+    note: str = Field(default="", max_length=500)
+    raw_data: str = Field(default="", max_length=2000)  # JSON từ webhook
+
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), index=True)

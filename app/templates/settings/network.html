@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Cài đặt — Mạng LAN{% endblock %}
+
+{% block content %}
+<h2 class="mb-3"><i class="bi bi-gear-fill"></i> Cài đặt hệ thống</h2>
+
+{% include "settings/_tabs.html" %}
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- Thông tin mạng hiện tại -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body">
+                <small class="text-muted">IP máy chủ (host)</small>
+                <h4 class="text-primary mb-0">{{ info.host_ip }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body">
+                <small class="text-muted">Port</small>
+                <h4 class="text-success mb-0">{{ info.port }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card {% if info.firewall_open %}border-success{% else %}border-danger{% endif %}">
+            <div class="card-body">
+                <small class="text-muted">Firewall</small>
+                <h5 class="{% if info.firewall_open %}text-success{% else %}text-danger{% endif %} mb-0">
+                    {% if info.firewall_open %}
+                    <i class="bi bi-check-circle-fill"></i> Đã mở
+                    {% else %}
+                    <i class="bi bi-x-circle-fill"></i> Chưa mở
+                    {% endif %}
+                </h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card {% if info.port_open %}border-success{% else %}border-warning{% endif %}">
+            <div class="card-body">
+                <small class="text-muted">Port đang chạy</small>
+                <h5 class="{% if info.port_open %}text-success{% else %}text-warning{% endif %} mb-0">
+                    {% if info.port_open %}✅ Có{% else %}⚠️ Không{% endif %}
+                </h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-7">
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-qr-code"></i> Truy cập từ máy khác
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Để máy khác (thu ngân, kế toán, bán hàng) truy cập, mở trình duyệt và nhập địa chỉ:
+                </p>
+
+                <div class="alert alert-info text-center py-3">
+                    <div style="font-size: 1.5rem; font-weight: bold; font-family: monospace;">
+                        {{ info.url }}
+                    </div>
+                </div>
+
+                <div class="text-center mb-3">
+                    <p class="text-muted small mb-2">Quét QR để vào nhanh:</p>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ info.url }}"
+                         alt="QR Code" style="border: 1px solid #ddd; padding: 10px;">
+                </div>
+
+                <div class="text-center">
+                    <button class="btn btn-outline-secondary" onclick="copyUrl()">
+                        <i class="bi bi-clipboard"></i> Copy địa chỉ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <i class="bi bi-shield-exclamation"></i> Cấu hình Firewall
+            </div>
+            <div class="card-body">
+                {% if info.firewall_open %}
+                <div class="alert alert-success mb-0">
+                    <i class="bi bi-check-circle-fill"></i>
+                    Port <strong>{{ info.port }}</strong> đã được mở trên Windows Firewall.
+                    Máy khác có thể truy cập.
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <strong>Cần mở port {{ info.port }}</strong> để máy khác truy cập được.
+                    Bấm nút dưới (sẽ hiện hộp thoại UAC — chọn "Yes").
+                </div>
+                <form method="post" action="/settings/open-firewall">
+                    <input type="hidden" name="port" value="{{ info.port }}">
+                    <button type="submit" class="btn btn-danger"
+                            onclick="return confirm('Mở port {{ info.port }} trên Firewall?\n\nSẽ hiện hộp thoại UAC — chọn Yes để cho phép.')">
+                        <i class="bi bi-shield-plus"></i> Mở port {{ info.port }} tự động
+                    </button>
+                </form>
+                {% endif %}
+
+                <details class="mt-3">
+                    <summary class="text-muted small">Mở port thủ công (nếu nút trên không hoạt động)</summary>
+                    <div class="mt-2">
+                        <p class="small mb-2">Mở PowerShell <strong>Run as Administrator</strong>, chạy:</p>
+                        <pre class="bg-dark text-white p-2 rounded" style="font-size: 0.85rem;">New-NetFirewallRule -DisplayName "Mini ERP {{ info.port }}" -Direction Inbound -Protocol TCP -LocalPort {{ info.port }} -Action Allow</pre>
+                    </div>
+                </details>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <div class="card mb-3">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-pc-display"></i> Cấu hình máy
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <th width="40%">Tên máy</th>
+                        <td><code>{{ info.hostname }}</code></td>
+                    </tr>
+                    <tr>
+                        <th>Hệ điều hành</th>
+                        <td>{{ info.os }}</td>
+                    </tr>
+                    <tr>
+                        <th>Machine ID</th>
+                        <td><code>{{ info.machine_id }}</code></td>
+                    </tr>
+                    <tr>
+                        <th>Tất cả IP</th>
+                        <td>
+                            {% for ip in info.all_ips %}
+                            <code>{{ ip }}</code><br>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <i class="bi bi-gear"></i> Đổi Port
+            </div>
+            <div class="card-body">
+                <form method="post" action="/settings/save-network">
+                    <div class="mb-2">
+                        <label class="form-label small">Port</label>
+                        <input type="number" name="lan_port" class="form-control"
+                               value="{{ profile.lan_port if profile else 8000 }}"
+                               min="1024" max="65535">
+                        <small class="text-muted">Mặc định: 8000</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-save"></i> Lưu port
+                    </button>
+                </form>
+                <div class="alert alert-warning small mt-2 mb-0">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Sau khi đổi port, cần <strong>khởi động lại ứng dụng</strong>.
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-3 bg-light">
+            <div class="card-body">
+                <h6><i class="bi bi-lightbulb"></i> Hướng dẫn nhanh</h6>
+                <ol class="small mb-0 ps-3">
+                    <li>Máy này (host) chạy app.</li>
+                    <li>Vào đây lấy địa chỉ <code>{{ info.url }}</code>.</li>
+                    <li>Mở port (nút trên).</li>
+                    <li>Máy khác trong cùng wifi/LAN mở trình duyệt gõ địa chỉ đó.</li>
+                    <li>Đăng nhập bằng tài khoản được cấp.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyUrl() {
+    navigator.clipboard.writeText('{{ info.url }}').then(() => {
+        alert('Đã copy: {{ info.url }}');
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% block title %}Cài đặt — Ngân hàng{% endblock %}
+
+{% block content %}
+<h2 class="mb-3"><i class="bi bi-gear-fill"></i> Cài đặt hệ thống</h2>
+
+{% include "settings/_tabs.html" %}
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <form method="post" action="/settings/save-bank">
+            <!-- === PHẦN 1: VIETQR === -->
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-qr-code"></i> Thông tin nhận tiền (VietQR)
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info small">
+                        <i class="bi bi-info-circle"></i>
+                        VietQR là chuẩn QR thanh toán liên ngân hàng của Napas.
+                        Khách quét QR bằng app ngân hàng → tự động điền số tiền + nội dung.
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Ngân hàng</label>
+                            <select name="bank_code" class="form-select">
+                                <option value="">-- Chọn ngân hàng --</option>
+                                {% set banks = {
+                                    'VCB': 'Vietcombank', 'TCB': 'Techcombank',
+                                    'MB': 'MBBank', 'VPB': 'VPBank', 'ACB': 'ACB',
+                                    'BIDV': 'BIDV', 'VTB': 'VietinBank',
+                                    'STB': 'Sacombank', 'TPB': 'TPBank',
+                                    'VIB': 'VIB', 'MSB': 'MSB', 'OCB': 'OCB',
+                                    'SHB': 'SHB', 'SCB': 'SCB', 'HDB': 'HDBank',
+                                    'LPB': 'LPBank', 'EIB': 'Eximbank',
+                                    'NAB': 'NamABank', 'SEAB': 'SeABank',
+                                    'PVCB': 'PVcomBank', 'AGRIBANK': 'Agribank',
+                                    'VIETBANK': 'VietBank', 'NCB': 'NCB',
+                                    'BAOVIETBANK': 'BaoVietBank',
+                                    'SAIGONBANK': 'SaigonBank', 'ABBANK': 'ABBank',
+                                    'SHBVN': 'Shinhan Bank VN'
+                                } %}
+                                {% for code, name in banks.items() %}
+                                <option value="{{ code }}"
+                                        {% if profile and profile.bank_code == code %}selected{% endif %}>
+                                    {{ code }} — {{ name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Số tài khoản</label>
+                            <input type="text" name="bank_account_no" class="form-control"
+                                   placeholder="VD: 1234567890"
+                                   value="{{ profile.bank_account_no if profile else '' }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Tên chủ tài khoản (viết hoa, không dấu)</label>
+                            <input type="text" name="bank_account_name" class="form-control"
+                                   placeholder="VD: NGUYEN VAN A"
+                                   style="text-transform: uppercase;"
+                                   value="{{ profile.bank_account_name if profile else '' }}">
+                            <small class="text-muted">Phải khớp với tên trên thẻ/tài khoản ngân hàng</small>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" name="enable_vietqr"
+                                       class="form-check-input" id="enableVietQR"
+                                       {% if not profile or profile.enable_vietqr %}checked{% endif %}>
+                                <label class="form-check-label" for="enableVietQR">
+                                    <strong>Hiển thị QR VietQR trên bill/hóa đơn</strong>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if profile and profile.bank_code and profile.bank_account_no %}
+                    <hr>
+                    <div class="text-center">
+                        <p class="text-muted small mb-2">
+                            <i class="bi bi-check-circle text-success"></i>
+                            QR hiện tại của bạn (test 100,000đ):
+                        </p>
+                        <img src="https://img.vietqr.io/image/{{ profile.bank_code }}-{{ profile.bank_account_no }}-compact2.png?amount=100000&addInfo=Test&accountName={{ profile.bank_account_name }}"
+                             alt="VietQR" style="max-width: 250px; border: 1px solid #ddd; padding: 10px; border-radius: 8px;">
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- === PHẦN 2: API WEBHOOK === -->
+            <div class="card mb-3">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-link-45deg"></i> Kết nối API báo tiền về tự động
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning small">
+                        <i class="bi bi-lightbulb"></i>
+                        <strong>Tính năng nâng cao (tùy chọn):</strong>
+                        Tự động nhận thông báo khi có tiền CK về → hệ thống tự khớp đơn hàng.
+                        Cần đăng ký dịch vụ Casso/Sepay (phí ~150-200k/tháng).
+                        Nếu không dùng → bỏ qua phần này, POS vẫn hoạt động bình thường.
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nhà cung cấp API</label>
+                            <select name="webhook_provider" class="form-select" id="webhookProvider">
+                                <option value="NONE"
+                                        {% if not profile or profile.webhook_provider == "NONE" %}selected{% endif %}>
+                                    ⛔ Không kết nối (thủ công)
+                                </option>
+                                <option value="CASSO"
+                                        {% if profile and profile.webhook_provider == "CASSO" %}selected{% endif %}>
+                                    🟢 Casso (casso.vn)
+                                </option>
+                                <option value="SEPAY"
+                                        {% if profile and profile.webhook_provider == "SEPAY" %}selected{% endif %}>
+                                    🔵 Sepay (sepay.vn)
+                                </option>
+                                <option value="PAYOS"
+                                        {% if profile and profile.webhook_provider == "PAYOS" %}selected{% endif %}>
+                                    🟣 PayOS (payos.vn)
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch mt-4">
+                                <input type="checkbox" name="webhook_enabled"
+                                       class="form-check-input" id="webhookEnabled"
+                                       {% if profile and profile.webhook_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="webhookEnabled">
+                                    <strong>Bật nhận webhook tự động</strong>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">API Key / Client ID</label>
+                            <input type="text" name="webhook_api_key" class="form-control"
+                                   placeholder="Nhập API key từ Casso/Sepay"
+                                   value="{{ profile.webhook_api_key if profile else '' }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Secret / Checksum Key</label>
+                            <input type="password" name="webhook_secret" class="form-control"
+                                   placeholder="Nhập secret key"
+                                   value="{{ profile.webhook_secret if profile else '' }}">
+                            <small class="text-muted">Dùng để verify chữ ký webhook</small>
+                        </div>
+
+                        <!-- Webhook URL để user copy vào Casso/Sepay -->
+                        <div class="col-12">
+                            <label class="form-label">
+                                <i class="bi bi-clipboard"></i> URL Webhook (copy vào Casso/Sepay)
+                            </label>
+                            <div class="input-group">
+                                <input type="text" class="form-control"
+                                       id="webhookUrl"
+                                       readonly
+                                       value="{{ request.url.scheme }}://{{ request.url.netloc }}/settings/bank-webhook">
+                                <button type="button" class="btn btn-outline-secondary"
+                                        onclick="copyWebhookUrl()">
+                                    <i class="bi bi-clipboard"></i> Copy
+                                </button>
+                            </div>
+                            <small class="text-muted">
+                                Dán URL này vào phần "Webhook URL" trong tài khoản Casso/Sepay của bạn.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="bi bi-save"></i> Lưu cấu hình
+            </button>
+        </form>
+
+        <!-- === HƯỚNG DẪN KẾT NỐI === -->
+        <div class="card mt-3">
+            <div class="card-header bg-info text-white">
+                <i class="bi bi-question-circle"></i> Hướng dẫn kết nối Casso (5 phút)
+            </div>
+            <div class="card-body">
+                <ol>
+                    <li>
+                        <strong>Đăng ký tài khoản Casso:</strong>
+                        Truy cập <a href="https://casso.vn" target="_blank">casso.vn</a> → Đăng ký
+                        (có bản dùng thử 7 ngày).
+                    </li>
+                    <li>
+                        <strong>Liên kết ngân hàng:</strong>
+                        Trong Casso, chọn "Liên kết ngân hàng" → chọn ngân hàng của bạn →
+                        đăng nhập Internet Banking → cấp quyền.
+                    </li>
+                    <li>
+                        <strong>Lấy API Key:</strong>
+                        Vào "Cài đặt" → "API" → copy "API Key" và "Secret Key".
+                    </li>
+                    <li>
+                        <strong>Dán vào Mini ERP:</strong>
+                        Ở form bên trên → paste API Key + Secret Key → bật "Nhận webhook" →
+                        Lưu.
+                    </li>
+                    <li>
+                        <strong>Đăng ký Webhook URL trong Casso:</strong>
+                        Vào "Webhook" trong Casso → dán URL ở trên → chọn sự kiện
+                        "Giao dịch tiền vào" → Save.
+                    </li>
+                    <li>
+                        <strong>Test:</strong>
+                        Thử CK 10,000đ vào STK đã liên kết với nội dung
+                        "Test" → trong 30 giây, Casso sẽ gọi webhook của Mini ERP.
+                    </li>
+                </ol>
+
+                <div class="alert alert-warning small mb-0">
+                    <strong>Lưu ý:</strong>
+                    Mini ERP cần có URL public (VD: <code>https://abc.trycloudflare.com</code>)
+                    để Casso gọi webhook được. Xem hướng dẫn cài Cloudflare Tunnel ở
+                    <a href="/settings/network">tab Mạng LAN</a>.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- === CỘT PHẢI === -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <i class="bi bi-info-circle"></i> Trạng thái
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <th>VietQR</th>
+                        <td>
+                            {% if profile and profile.enable_vietqr and profile.bank_code and profile.bank_account_no %}
+                            <span class="badge bg-success">Bật</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Tắt</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Ngân hàng</th>
+                        <td>
+                            {% if profile and profile.bank_code %}
+                            <strong>{{ profile.bank_code }}</strong>
+                            {% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Webhook</th>
+                        <td>
+                            {% if profile and profile.webhook_enabled %}
+                            <span class="badge bg-success">{{ profile.webhook_provider }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Chưa kết nối</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            {% if profile and profile.webhook_enabled %}
+            <div class="card-footer">
+                <a href="/settings/unmatched-txns" class="btn btn-sm btn-outline-warning w-100">
+                    <i class="bi bi-exclamation-triangle"></i> Giao dịch chưa khớp
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="card mt-3 bg-light">
+            <div class="card-body">
+                <h6><i class="bi bi-cash-coin"></i> Chi phí tham khảo</h6>
+                <table class="table table-sm small mb-0">
+                    <tr>
+                        <td><strong>Casso</strong></td>
+                        <td class="text-end">~200k/tháng</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Sepay</strong></td>
+                        <td class="text-end">~150k/tháng</td>
+                    </tr>
+                    <tr>
+                        <td><strong>PayOS</strong></td>
+                        <td class="text-end">~1% giao dịch</td>
+                    </tr>
+                </table>
+                <p class="small text-muted mt-2 mb-0">
+                    Bạn tự đăng ký và thanh toán trực tiếp với nhà cung cấp.
+                    Mini ERP không thu phí trung gian.
+                </p>
+            </div>
+        </div>
+
+        <div class="alert alert-success mt-3 small">
+            <strong><i class="bi bi-shield-check"></i> An toàn:</strong>
+            Mini ERP chỉ nhận webhook, verify chữ ký, và lưu log.
+            Không yêu cầu mật khẩu ngân hàng hay quyền rút tiền.
+        </div>
+    </div>
+</div>
+
+<script>
+function copyWebhookUrl() {
+    const url = document.getElementById('webhookUrl').value;
+    navigator.clipboard.writeText(url).then(() => {
+        alert('Đã copy URL:\n' + url);
+    });
+}
+
+// Ẩn/hiện phần API Key khi chọn provider
+document.getElementById('webhookProvider').addEventListener('change', function() {
+    const box = this.closest('.card-body');
+    const apiFields = box.querySelectorAll('input[name="webhook_api_key"], input[name="webhook_secret"]');
+    const isNone = this.value === 'NONE';
+    apiFields.forEach(f => {
+        f.disabled = isNone;
+        if (isNone) f.value = '';
+    });
+});
+// Trigger lần đầu
+document.getElementById('webhookProvider').dispatchEvent(new Event('change'));
+</script>
+{% endblock %}

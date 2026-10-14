@@ -21,6 +21,8 @@ PUBLIC_PATHS = (
     "/auth/logout",
     "/static",
     "/favicon.ico",
+    "/settings/bank-webhook",   # Webhook từ Casso/Sepay
+    "/settings/api/",           # API polling (đã có auth nội bộ riêng)
 )
 
 
@@ -90,10 +92,12 @@ async def auth_middleware(request: Request, call_next):
     request.state.user_id = uid
 
     # Load user object + permissions (cache vào request.state)
+    # Load user object + permissions (cache vào request.state)
     from sqlmodel import Session
     from app.core.database import engine
     from app.modules.auth.models import User
     from app.modules.auth.services import get_permission_codes_of_user, is_admin
+    from app.modules.ke_toan.models import HKDProfile
 
     with Session(engine) as s:
         user = s.get(User, uid)
@@ -104,6 +108,10 @@ async def auth_middleware(request: Request, call_next):
                 request.state.permissions = ["*"]  # Wildcard
             else:
                 request.state.permissions = get_permission_codes_of_user(s, uid)
+
+            # Load HKDProfile để hiển thị tên app + logo trên mọi trang
+            hkd = s.exec(__import__('sqlmodel').select(HKDProfile)).first()
+            request.state.hkd_profile = hkd
         else:
             # User bị khóa/xóa → logout
             response = RedirectResponse(url="/auth/login", status_code=303)
