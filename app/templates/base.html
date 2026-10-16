@@ -165,24 +165,21 @@
                             <strong>0916.887.359</strong>
                         </a>
                     </div>
-                    <div class="mt-1">
-                        <a href="#" target="_blank" class="text-white-50 me-2" title="YouTube">
+                        <div class="mt-1">
+                        <a href="https://www.youtube.com/@Apptinhg%E1%BB%8Dn"
+                           target="_blank" class="text-white-50 me-2" title="YouTube">
                             <i class="bi bi-youtube"></i> YouTube
                         </a>
-                        <a href="#" target="_blank" class="text-white-50 me-2" title="TikTok">
+                        <a href="https://www.tiktok.com/@kiengiun1202"
+                           target="_blank" class="text-white-50 me-2" title="TikTok">
                             <i class="bi bi-tiktok"></i> TikTok
                         </a>
-                        <a href="#" target="_blank" class="text-white-50 me-2" title="Facebook">
+                        <a href="https://www.facebook.com/profile.php?id=61593378731175"
+                           target="_blank" class="text-white-50 me-2" title="Facebook">
                             <i class="bi bi-facebook"></i> Facebook
                         </a>
-                        <a href="#" target="_blank" class="text-white-50" title="Website">
+                        <a href="#" target="_blank" class="text-white-50" title="Website (sắp có)">
                             <i class="bi bi-globe"></i> Website
-                        </a>
-                    </div>
-                    <div class="small mt-1">
-                        v1.0.0 · 10/2026 ·
-                        <a href="/app-news" class="text-info text-decoration-none">
-                            <i class="bi bi-megaphone"></i> Tin cập nhật
                         </a>
                     </div>
                 </div>
@@ -203,5 +200,21 @@
         padding-bottom: 120px !important;
     }
     </style>
+	
+	<script>
+// Load badge số tin chưa đọc
+{% if request.state.user %}
+fetch('/app-news/api/unread-count')
+    .then(r => r.json())
+    .then(data => {
+        const badge = document.getElementById('newsBadge');
+        if (badge && data.count > 0) {
+            badge.textContent = data.count > 99 ? '99+' : data.count;
+            badge.style.display = 'inline-block';
+        }
+    })
+    .catch(e => console.log('Badge error:', e));
+{% endif %}
+</script>
 </body>
 </html>

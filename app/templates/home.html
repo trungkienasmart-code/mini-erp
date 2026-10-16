@@ -1,9 +1,300 @@
 {% extends "base.html" %}
-{% block title %}Trang chủ - Mini ERP{% endblock %}
+{% block title %}Trang chủ - {{ request.state.hkd_profile.business_name if request.state.hkd_profile and request.state.hkd_profile.business_name else 'Mini ERP' }}{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">Chào mừng đến với {{ app_name }}</h2>
-<div class="alert alert-info">
-    Phiên bản: <strong>{{ version }}</strong> — Hệ thống đang chạy tốt! 🎉
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>
+        <i class="bi bi-speedometer2"></i>
+        Xin chào, <strong>{{ request.state.user.full_name }}</strong>! 👋
+    </h3>
+    <div>
+        {% if stats.news_unread > 0 %}
+        <a href="/app-news/" class="btn btn-outline-danger">
+            <i class="bi bi-bell-fill"></i> {{ stats.news_unread }} tin mới
+        </a>
+        {% endif %}
+        <a href="/backup/" class="btn btn-outline-primary">
+            <i class="bi bi-hdd"></i> Sao lưu ngay
+        </a>
+    </div>
 </div>
+
+<!-- HÀNG 1: 4 thẻ KPI -->
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="card border-primary h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <small class="text-muted">Doanh thu hôm nay</small>
+                        <h3 class="text-primary mb-0">{{ "{:,.0f}".format(stats.revenue_today) }} đ</h3>
+                        <small class="text-muted">
+                            Tuần: {{ "{:,.0f}".format(stats.revenue_week) }} đ
+                        </small>
+                    </div>
+                    <i class="bi bi-cash-coin text-primary" style="font-size: 2rem; opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <small class="text-muted">Đơn chờ xử lý</small>
+                        <h3 class="text-warning mb-0">{{ stats.unpaid_sales + stats.pending_purchase }}</h3>
+                        <small class="text-muted">
+                            Bán: {{ stats.unpaid_sales }} · Mua: {{ stats.pending_purchase }}
+                        </small>
+                    </div>
+                    <i class="bi bi-clock-history text-warning" style="font-size: 2rem; opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <small class="text-muted">Phải thu KH</small>
+                        <h3 class="text-success mb-0">{{ "{:,.0f}".format(stats.receivable) }} đ</h3>
+                        <small class="text-muted">
+                            Phải trả NCC: {{ "{:,.0f}".format(stats.payable) }} đ
+                        </small>
+                    </div>
+                    <i class="bi bi-arrow-down-circle text-success" style="font-size: 2rem; opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card {% if stats.low_stock_count > 0 %}border-danger{% else %}border-secondary{% endif %} h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <small class="text-muted">Tồn kho thấp</small>
+                        <h3 class="{% if stats.low_stock_count > 0 %}text-danger{% else %}text-secondary{% endif %} mb-0">
+                            {{ stats.low_stock_count }} SP
+                        </h3>
+                        <small class="text-muted">Cần nhập thêm</small>
+                    </div>
+                    <i class="bi bi-exclamation-triangle text-danger" style="font-size: 2rem; opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- HÀNG 2: Biểu đồ + Top SP -->
+<div class="row g-3 mb-3">
+    <div class="col-md-7">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-bar-chart-fill"></i> Doanh thu 7 ngày gần nhất
+            </div>
+            <div class="card-body">
+                {% if stats.revenue_7days and stats.revenue_7days_max > 0 %}
+                <div class="d-flex align-items-end justify-content-between" style="height: 180px; gap: 8px;">
+                    {% for d in stats.revenue_7days %}
+                    {% set pct = (d.value / stats.revenue_7days_max * 100) if stats.revenue_7days_max > 0 else 0 %}
+                    <div class="flex-grow-1 text-center" style="height: 100%; display: flex; flex-direction: column; justify-content: flex-end;">
+                        <div class="small text-muted mb-1">
+                            {% if d.value > 0 %}{{ "{:,.0f}".format(d.value) }}{% endif %}
+                        </div>
+                        <div class="bg-primary rounded-top"
+                             style="height: {{ pct }}%; min-height: 4px; transition: all 0.3s;"
+                             title="{{ d.date }}: {{ "{:,.0f}".format(d.value) }}đ"></div>
+                        <div class="small text-muted mt-1">{{ d.label }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-bar-chart" style="font-size: 3rem;"></i>
+                    <p class="mt-2">Chưa có doanh thu trong 7 ngày qua</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-5">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-trophy-fill"></i> Top 5 SP bán chạy (30 ngày)
+            </div>
+            <div class="card-body p-0">
+                {% if stats.top_products %}
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px;">#</th>
+                            <th>Sản phẩm</th>
+                            <th class="text-end" style="width: 80px;">SL</th>
+                            <th class="text-end" style="width: 110px;">Doanh thu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in stats.top_products %}
+                        <tr>
+                            <td class="text-center">
+                                {% if loop.index == 1 %}🥇
+                                {% elif loop.index == 2 %}🥈
+                                {% elif loop.index == 3 %}🥉
+                                {% else %}{{ loop.index }}{% endif %}
+                            </td>
+                            <td>
+                                <a href="/inventory/products/{{ item.product.id }}"
+                                   class="text-decoration-none">
+                                    {{ item.product.name }}
+                                </a>
+                                <br><small class="text-muted">{{ item.product.sku }}</small>
+                            </td>
+                            <td class="text-end fw-bold">{{ item.quantity }}</td>
+                            <td class="text-end small">{{ "{:,.0f}".format(item.revenue) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-trophy" style="font-size: 3rem;"></i>
+                    <p class="mt-2">Chưa có SP bán chạy</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- HÀNG 3: Tin tức + Tồn kho thấp -->
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-newspaper"></i> Tin tức từ App Tinh Gọn</span>
+                <a href="/app-news/" class="btn btn-sm btn-light">Xem tất cả →</a>
+            </div>
+            <div class="card-body p-0">
+                {% if stats.news %}
+                <div class="list-group list-group-flush">
+                    {% for n in stats.news %}
+                    <a href="/app-news/?news_id={{ n.id }}"
+                       class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    {% if not n.is_read %}
+                                    <span class="badge bg-danger" style="font-size: 0.6rem;">MỚI</span>
+                                    {% endif %}
+                                    {% if n.is_pinned %}
+                                    <i class="bi bi-pin-angle-fill text-warning" title="Ghim"></i>
+                                    {% endif %}
+                                    <span class="badge
+                                        {% if n.news_type == 'MODULE' %}bg-purple text-white
+                                        {% elif n.news_type == 'FEATURE' %}bg-success
+                                        {% elif n.news_type == 'BUGFIX' %}bg-warning text-dark
+                                        {% elif n.news_type == 'PRICE' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}"
+                                        style="font-size: 0.65rem;">
+                                        {{ n.news_type }}
+                                    </span>
+                                    {% if n.version %}
+                                    <small class="text-muted">{{ n.version }}</small>
+                                    {% endif %}
+                                </div>
+                                <strong>{{ n.title }}</strong>
+                                <div class="small text-muted">{{ n.summary[:100] }}</div>
+                            </div>
+                            <div class="text-end ms-2">
+                                {% if n.published_at %}
+                                <small class="text-muted">{{ n.published_at.strftime("%d/%m") }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                    <p class="mt-2 small">Chưa có tin nào</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-exclamation-triangle-fill"></i> Sản phẩm cần nhập thêm</span>
+                <a href="/inventory/stock-moves" class="btn btn-sm btn-light">Nhập hàng →</a>
+            </div>
+            <div class="card-body p-0">
+                {% if stats.low_stock %}
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Sản phẩm</th>
+                            <th class="text-center" style="width: 90px;">Tồn / Min</th>
+                            <th class="text-end" style="width: 100px;">Thiếu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in stats.low_stock %}
+                        <tr>
+                            <td>
+                                <a href="/inventory/products/{{ p.id }}" class="text-decoration-none">
+                                    {{ p.name }}
+                                </a>
+                                <br><small class="text-muted">{{ p.sku }}</small>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-danger">{{ p.stock_quantity }}</span>
+                                <span class="text-muted">/ {{ p.min_stock }}</span>
+                            </td>
+                            <td class="text-end text-danger fw-bold">
+                                {{ p.min_stock - p.stock_quantity }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 2rem;"></i>
+                    <p class="mt-2 small">Tất cả sản phẩm đủ hàng 🎉</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- HÀNG 4: Quỹ tiền -->
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card border-primary">
+            <div class="card-body">
+                <small class="text-muted"><i class="bi bi-cash-stack"></i> Tiền mặt trong quỹ</small>
+                <h3 class="text-primary mb-0">{{ "{:,.0f}".format(stats.total_cash) }} đ</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-success">
+            <div class="card-body">
+                <small class="text-muted"><i class="bi bi-bank"></i> Tiền gửi ngân hàng</small>
+                <h3 class="text-success mb-0">{{ "{:,.0f}".format(stats.total_bank) }} đ</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-purple { background-color: #6f42c1 !important; color: white; }
+</style>
 {% endblock %}

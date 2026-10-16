@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Tin tức từ App Tinh Gọn{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>
+        <i class="bi bi-newspaper"></i> Tin tức từ App Tinh Gọn
+        {% if unread_count > 0 %}
+        <span class="badge bg-danger">{{ unread_count }} chưa đọc</span>
+        {% endif %}
+    </h2>
+    <div>
+        <form method="post" action="/app-news/sync" class="d-inline">
+            <button class="btn btn-outline-primary" title="Kiểm tra tin mới từ server">
+                <i class="bi bi-arrow-clockwise"></i> Kiểm tra tin mới
+            </button>
+        </form>
+        {% if unread_count > 0 %}
+        <form method="post" action="/app-news/mark-all-read" class="d-inline">
+            <button class="btn btn-outline-secondary">
+                <i class="bi bi-check2-all"></i> Đánh dấu đã đọc tất cả
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+    {{ request.query_params.get('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('success') %}
+<div class="alert alert-success alert-dismissible fade show">
+    {{ request.query_params.get('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if request.query_params.get('warning') %}
+<div class="alert alert-warning alert-dismissible fade show">
+    {{ request.query_params.get('warning') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="row g-3">
+    <!-- CỘT TRÁI: DS TIN -->
+    <div class="col-md-4">
+        <div class="card" style="max-height: calc(100vh - 250px);">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-ul"></i> Danh sách ({{ news_all|length }})</span>
+                <div class="btn-group btn-group-sm">
+                    <a href="/app-news/" class="btn btn-light {% if not only_unread %}active{% endif %}">
+                        Tất cả
+                    </a>
+                    <a href="/app-news/?unread=1" class="btn btn-light {% if only_unread %}active{% endif %}">
+                        Chưa đọc
+                    </a>
+                </div>
+            </div>
+            <div class="list-group list-group-flush" style="overflow-y: auto;">
+                {% for n in news_all %}
+                <a href="/app-news/?news_id={{ n.id }}{% if only_unread %}&unread=1{% endif %}"
+                   class="list-group-item list-group-item-action
+                          {% if current_news and current_news.id == n.id %}active{% endif %}
+                          {% if not n.is_read %}fw-bold{% endif %}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1 me-2">
+                            <div class="mb-1 d-flex align-items-center gap-1">
+                                {% if not n.is_read %}
+                                <span class="badge bg-danger" style="font-size: 0.6rem;">MỚI</span>
+                                {% endif %}
+                                {% if n.is_pinned %}
+                                <i class="bi bi-pin-angle-fill text-warning"></i>
+                                {% endif %}
+                                <span class="badge
+                                    {% if n.news_type == 'MODULE' %}bg-purple text-white
+                                    {% elif n.news_type == 'FEATURE' %}bg-success
+                                    {% elif n.news_type == 'BUGFIX' %}bg-warning text-dark
+                                    {% elif n.news_type == 'PRICE' %}bg-danger
+                                    {% elif n.news_type == 'URGENT' %}bg-danger
+                                    {% else %}bg-secondary{% endif %}"
+                                    style="font-size: 0.6rem;">
+                                    {{ n.news_type }}
+                                </span>
+                            </div>
+                            <div class="small">{{ n.title }}</div>
+                            {% if n.published_at %}
+                            <div class="small opacity-75">
+                                {{ n.published_at.strftime("%d/%m/%Y %H:%M") }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+                {% else %}
+                <div class="list-group-item text-center text-muted py-5">
+                    <i class="bi bi-inbox" style="font-size: 2.5rem;"></i>
+                    <p class="mt-2 mb-0">
+                        {% if only_unread %}Không có tin chưa đọc{% else %}Chưa có tin nào{% endif %}
+                    </p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- CỘT PHẢI: CHI TIẾT -->
+    <div class="col-md-8">
+        {% if current_news %}
+        <div class="card">
+            <div class="card-body">
+                <div class="mb-2 d-flex align-items-center gap-2">
+                    <span class="badge
+                        {% if current_news.news_type == 'MODULE' %}bg-purple text-white
+                        {% elif current_news.news_type == 'FEATURE' %}bg-success
+                        {% elif current_news.news_type == 'BUGFIX' %}bg-warning text-dark
+                        {% elif current_news.news_type == 'PRICE' %}bg-danger
+                        {% elif current_news.news_type == 'URGENT' %}bg-danger
+                        {% else %}bg-secondary{% endif %}">
+                        {{ current_news.news_type }}
+                    </span>
+                    {% if current_news.version %}
+                    <span class="badge bg-info text-dark">{{ current_news.version }}</span>
+                    {% endif %}
+                    {% if current_news.priority == "HIGH" or current_news.priority == "URGENT" %}
+                    <span class="badge bg-danger">
+                        <i class="bi bi-exclamation-triangle-fill"></i> {{ current_news.priority }}
+                    </span>
+                    {% endif %}
+                    {% if current_news.is_pinned %}
+                    <span class="badge bg-warning text-dark">
+                        <i class="bi bi-pin-angle-fill"></i> Ghim
+                    </span>
+                    {% endif %}
+                    {% if current_news.published_at %}
+                    <small class="text-muted ms-auto">
+                        <i class="bi bi-clock"></i>
+                        {{ current_news.published_at.strftime("%d/%m/%Y %H:%M") }}
+                    </small>
+                    {% endif %}
+                </div>
+
+                <h3 class="mb-3">{{ current_news.title }}</h3>
+
+                {% if current_news.summary %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> {{ current_news.summary }}
+                </div>
+                {% endif %}
+
+                <div class="content" style="line-height: 1.7; white-space: pre-wrap;">{{ current_news.content }}</div>
+
+                {% if current_news.action_url and current_news.action_label %}
+                <hr>
+                <div class="text-center">
+                    <a href="{{ current_news.action_url }}" target="_blank"
+                       class="btn btn-primary btn-lg">
+                        <i class="bi bi-box-arrow-up-right"></i> {{ current_news.action_label }}
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="alert alert-light border mt-3 small">
+            <i class="bi bi-lightbulb"></i>
+            <strong>Cần hỗ trợ?</strong> Liên hệ Zalo:
+            <a href="https://zalo.me/0916887359" target="_blank">0916.887.359</a>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5 text-muted">
+                <i class="bi bi-newspaper" style="font-size: 4rem;"></i>
+                <p class="mt-3">Chọn một tin để xem chi tiết</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.bg-purple { background-color: #6f42c1 !important; color: white; }
+.list-group-item.active .bg-purple { background-color: #5a32a3 !important; }
+</style>
+{% endblock %}

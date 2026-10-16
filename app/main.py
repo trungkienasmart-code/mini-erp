@@ -150,12 +150,21 @@ async def auth_middleware(request: Request, call_next):
 
 
 @app.get("/")
+@app.get("/")
 def home(request: Request):
+    from sqlmodel import Session
+    from app.core.database import engine
+    from app.core.dashboard import get_dashboard_stats
+
+    with Session(engine) as s:
+        stats = get_dashboard_stats(s)
+
     return templates.TemplateResponse(
         request=request,
         name="home.html",
         context={
             "app_name": APP_NAME,
             "version": APP_VERSION,
+            "stats": stats,
         },
     )

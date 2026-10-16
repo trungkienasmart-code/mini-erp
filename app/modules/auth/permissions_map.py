@@ -101,6 +101,9 @@ _ROUTE_MAP = [
     ("/import/template", "accounting.settings.edit"),
     ("/import/", "accounting.settings.edit"),
     ("/import", "accounting.settings.edit"),
+    # === APP NEWS ===
+    ("/app-news/", None),  # Ai cũng xem được tin
+    ("/app-news", None),
 ]
 
 # Sắp xếp theo độ dài prefix giảm dần (match cái cụ thể trước)
